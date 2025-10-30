@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "@/db";
 import { categories } from "@/db/schema";
-import { AppVariables } from "@/app/api/[[...route]]/route";
+import type { AppVariables } from "@/app/api/[[...route]]/route";
 
 const app = new Hono<{
   Variables: AppVariables;
