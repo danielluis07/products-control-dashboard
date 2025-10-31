@@ -52,14 +52,14 @@ const app = new Hono<{
   })
   .post("/", zValidator("json", createStationSchema), async (c) => {
     const session = c.get("session");
-    const { name } = c.req.valid("json");
+    const values = c.req.valid("json");
 
     if (!session) {
       return c.json({ message: "Não autorizado" }, 401);
     }
 
     try {
-      const [data] = await db.insert(stations).values({ name }).returning();
+      const [data] = await db.insert(stations).values(values).returning();
 
       return c.json({ data });
     } catch (error) {

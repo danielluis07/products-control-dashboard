@@ -20,7 +20,17 @@ export const useDeleteCategories = () => {
       const res = await client.api.categories.delete.$post({
         json: { ids },
       });
-      return await res.json();
+
+      if (!res.ok) {
+        const errorData = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        throw new Error(errorData.message || "Erro ao deletar as categorias");
+      }
+
+      const data = await res.json();
+
+      return data;
     },
     onSuccess: (_data, ids) => {
       toast.success("Categorias deletadas com sucesso!");
