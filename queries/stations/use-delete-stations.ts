@@ -4,20 +4,20 @@ import { client } from "@/lib/hono";
 import { toast } from "sonner";
 
 type ResponseType = InferResponseType<
-  (typeof client.api.categories)["delete"]["$post"]
+  (typeof client.api.stations)["delete"]["$post"]
 >;
 
-type Category = InferResponseType<
-  (typeof client.api.categories)["$get"],
+type Station = InferResponseType<
+  (typeof client.api.stations)["$get"],
   200
 >["data"];
 
-export const useDeleteCategories = () => {
+export const useDeleteStations = () => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation<ResponseType, Error, string[]>({
     mutationFn: async (ids: string[]) => {
-      const res = await client.api.categories.delete.$post({
+      const res = await client.api.stations.delete.$post({
         json: { ids },
       });
 
@@ -25,7 +25,7 @@ export const useDeleteCategories = () => {
         const errorData = (await res.json().catch(() => ({}))) as {
           message?: string;
         };
-        throw new Error(errorData.message || "Erro ao deletar as categorias");
+        throw new Error(errorData.message || "Erro ao deletar os postos");
       }
 
       const data = await res.json();
@@ -33,19 +33,16 @@ export const useDeleteCategories = () => {
       return data;
     },
     onSuccess: (_data, ids) => {
-      toast.success("Categorias deletadas com sucesso!");
-      queryClient.setQueryData(
-        ["categories"],
-        (oldData: Category | undefined) => {
-          return oldData
-            ? oldData.filter((category) => !ids.includes(category.id))
-            : [];
-        }
-      );
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Postos deletados com sucesso!");
+      queryClient.setQueryData(["stations"], (oldData: Station | undefined) => {
+        return oldData
+          ? oldData.filter((station) => !ids.includes(station.id))
+          : [];
+      });
+      queryClient.invalidateQueries({ queryKey: ["stations"] });
     },
     onError: (error) => {
-      toast.error("Houve um erro ao deletar as categorias!");
+      toast.error("Houve um erro ao deletar os postos!");
       console.error(error);
     },
   });

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
+import stations from "@/app/api/[[...route]]/stations";
 import categories from "@/app/api/[[...route]]/categories";
 
 export type AppVariables = {
@@ -31,7 +32,9 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-const routes = app.route("/categories", categories);
+const routes = app
+  .route("/categories", categories)
+  .route("/stations", stations);
 
 export const GET = handle(app);
 export const POST = handle(app);
