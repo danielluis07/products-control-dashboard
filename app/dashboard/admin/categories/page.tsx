@@ -1,13 +1,10 @@
+import { CategoriesClient } from "@/components/admin/categories/client";
 import { requireAuth } from "@/lib/auth-utils";
 
 const CategoriesPage = async () => {
-  const { user } = await requireAuth();
+  await requireAuth();
 
-  return (
-    <div>
-      <p>Categories Page</p>
-    </div>
-  );
+  return <CategoriesClient />;
 };
 
 export default CategoriesPage;
