@@ -40,6 +40,10 @@ const app = new Hono<{
         .from(categories)
         .where(eq(categories.id, id));
 
+      if (!data) {
+        return c.json({ message: "Categoria não encontrada" }, 404);
+      }
+
       return c.json({ data });
     } catch (error) {
       console.error("Erro ao buscar a categoria:", error);
