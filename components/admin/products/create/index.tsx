@@ -77,9 +77,9 @@ export const CreateProductForm = ({
   return (
     <Dialog
       open={open}
-      onOpenChange={() => {
-        setOpen(!open);
-        if (!open) {
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) {
           form.reset();
         }
       }}>
