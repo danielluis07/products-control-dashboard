@@ -8,6 +8,20 @@
       "when": 1761744443650,
       "tag": "0000_burly_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761958658678,
+      "tag": "0001_zippy_inertia",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761961088476,
+      "tag": "0002_wide_gunslinger",
+      "breakpoints": true
     }
   ]
 }

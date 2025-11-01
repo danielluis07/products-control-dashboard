@@ -11,7 +11,7 @@ import {
 // --- ENUMS ---
 
 // Define as permissões/cargos dos usuários
-export const userRoleEnum = pgEnum("user_role", ["admin", "manager"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "user"]);
 
 // Define as ações que podem ser registradas para um item de inventário
 export const activityActionEnum = pgEnum("activity_action", [
@@ -33,6 +33,9 @@ export const user = pgTable("user", {
     .notNull(),
   image: text("image"),
   role: userRoleEnum("role").notNull().default("admin"),
+  banned: boolean("banned").notNull().default(false),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires"),
   stationId: text("station_id").references(() => stations.id),
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())
@@ -52,6 +55,7 @@ export const session = pgTable("session", {
   updatedAt: timestamp("updated_at").notNull(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
+  impersonatedBy: text("impersonated_by"),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
