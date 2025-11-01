@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -45,7 +45,14 @@ export const CreateUser = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const queryClient = useQueryClient();
+
+  // 2. Use useEffect to set isMounted to true after the component mounts
+  // This hook only runs on the client side.
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const form = useForm({
     defaultValues: {
@@ -84,6 +91,11 @@ export const CreateUser = ({
       }
     },
   });
+
+  if (!isMounted) {
+    return null;
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
