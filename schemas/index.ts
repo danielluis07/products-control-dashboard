@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { email, z } from "zod";
 
 export const signUpSchema = z
   .object({
@@ -27,3 +27,30 @@ export const createStationSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   address: z.string().optional(),
 });
+
+export const createUserSchema = z.object({
+  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
+  email: z.email("Insira um email válido"),
+  password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres"),
+  stationId: z.string().min(1, "Selecione um posto"),
+});
+
+export const updateUserSchema = z.object({
+  id: z.string().min(1, "Selecione um usuário"),
+  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
+  email: z.email("Insira um email válido"),
+  stationId: z.string().min(1, "Selecione um posto"),
+});
+
+export const updateUserPasswordSchema = z
+  .object({
+    id: z.string().min(1, "Selecione um usuário"),
+    password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres"),
+    repeat_password: z
+      .string()
+      .min(8, "A senha deve ter pelo menos 8 caracteres"),
+  })
+  .refine((data) => data.password === data.repeat_password, {
+    message: "As senhas não coincidem",
+    path: ["repeat_password"],
+  });

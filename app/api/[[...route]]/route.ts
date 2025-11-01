@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import stations from "@/app/api/[[...route]]/stations";
 import categories from "@/app/api/[[...route]]/categories";
+import users from "@/app/api/[[...route]]/users";
 
 export type AppVariables = {
   user: typeof auth.$Infer.Session.user | null;
@@ -34,7 +35,8 @@ app.use("*", async (c, next) => {
 
 const routes = app
   .route("/categories", categories)
-  .route("/stations", stations);
+  .route("/stations", stations)
+  .route("/users", users);
 
 export const GET = handle(app);
 export const POST = handle(app);
