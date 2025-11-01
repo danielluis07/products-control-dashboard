@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type FormData = z.infer<typeof createProductSchema>;
 
@@ -46,7 +46,12 @@ export const CreateProductForm = ({
 }) => {
   const { mutate, isPending } = useCreateProduct();
   const [open, setOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const form = useForm({
     defaultValues: {
@@ -73,6 +78,10 @@ export const CreateProductForm = ({
       });
     },
   });
+
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <Dialog
