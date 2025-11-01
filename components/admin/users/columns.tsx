@@ -47,8 +47,12 @@ export const columns: ColumnDef<Response>[] = [
     accessorKey: "createdAt",
     header: "Criado em",
     cell: ({ row }) => {
-      const date = row.original.createdAt;
-      return format(date, "dd/MM/yyyy");
+      const createdAt = new Date(row.original.createdAt);
+      if (isNaN(createdAt.getTime())) {
+        return "-";
+      }
+
+      return format(createdAt, "dd/MM/yyyy");
     },
   },
   {

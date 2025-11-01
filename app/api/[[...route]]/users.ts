@@ -11,8 +11,9 @@ const app = new Hono<{
 }>()
   .get("/", async (c) => {
     const session = c.get("session");
+    const authUser = c.get("user");
 
-    if (!session) {
+    if (!session || authUser?.role !== "admin") {
       return c.json({ message: "Não autorizado" }, 401);
     }
 
@@ -38,9 +39,10 @@ const app = new Hono<{
   })
   .get("/:id", async (c) => {
     const session = c.get("session");
+    const authUser = c.get("user");
     const { id } = c.req.param();
 
-    if (!session) {
+    if (!session || authUser?.role !== "admin") {
       return c.json({ message: "Não autorizado" }, 401);
     }
 
@@ -67,9 +69,10 @@ const app = new Hono<{
     ),
     async (c) => {
       const session = c.get("session");
+      const authUser = c.get("user");
       const values = c.req.valid("json");
 
-      if (!session) {
+      if (!session || authUser?.role !== "admin") {
         return c.json({ message: "Não autorizado" }, 401);
       }
 

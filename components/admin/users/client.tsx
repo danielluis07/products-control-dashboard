@@ -3,9 +3,9 @@
 import { columns } from "@/components/admin/users/columns";
 import { DataTable } from "@/components/ui/data-table";
 import { useConfirm } from "@/providers/confirm-provider";
-import { useDeleteStations } from "@/queries/stations/use-delete-stations";
 import { CreateUser } from "@/components/admin/users/create";
 import { useGetUsers } from "@/queries/users/use-get-users";
+import { useDeleteUsers } from "@/queries/users/use-delete-users";
 
 export const UsersClient = ({
   stationsData,
@@ -16,7 +16,7 @@ export const UsersClient = ({
   }[];
 }) => {
   const { data, isLoading } = useGetUsers();
-  const { mutate } = useDeleteStations();
+  const { mutate } = useDeleteUsers();
   const { closeConfirm, setPending } = useConfirm();
 
   return (

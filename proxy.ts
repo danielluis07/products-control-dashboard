@@ -4,7 +4,7 @@ import { getCookieCache } from "better-auth/cookies";
 const LOGIN_ROUTE = "/login";
 const DASHBOARD_ROOT = "/dashboard";
 const ADMIN_ROOT = "/dashboard/admin";
-const MANAGER_ROOT = "/dashboard/manager";
+const USER_ROOT = "/dashboard/user";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -17,7 +17,7 @@ export async function proxy(request: NextRequest) {
   if (pathname.startsWith(LOGIN_ROUTE)) {
     // Se o usuário já está logado, redirecione-o para o dashboard
     if (session) {
-      const redirectUrl = role === "admin" ? ADMIN_ROOT : MANAGER_ROOT;
+      const redirectUrl = role === "admin" ? ADMIN_ROOT : USER_ROOT;
       return NextResponse.redirect(new URL(redirectUrl, request.url));
     }
     // Se não está logado, permita o acesso à página de login
@@ -43,22 +43,22 @@ export async function proxy(request: NextRequest) {
   // Acessando a raiz do dashboard (/dashboard)
   if (pathname === DASHBOARD_ROOT) {
     // Redireciona com base na função do usuário
-    const redirectUrl = role === "admin" ? ADMIN_ROOT : MANAGER_ROOT;
+    const redirectUrl = role === "admin" ? ADMIN_ROOT : USER_ROOT;
     return NextResponse.redirect(new URL(redirectUrl, request.url));
   }
 
   // Acessando rotas de Admin (/dashboard/admin/*)
   if (pathname.startsWith(ADMIN_ROOT)) {
     if (role !== "admin") {
-      // Se não for admin, chuta ele para o dashboard de manager
-      return NextResponse.redirect(new URL(MANAGER_ROOT, request.url));
+      // Se não for admin, chuta ele para o dashboard de usuário
+      return NextResponse.redirect(new URL(USER_ROOT, request.url));
     }
   }
 
-  // Acessando rotas de Manager
-  if (pathname.startsWith(MANAGER_ROOT)) {
-    if (role !== "manager") {
-      // Se não for manager (ex: um admin), chuta ele para o dashboard de admin
+  // Acessando rotas de User
+  if (pathname.startsWith(USER_ROOT)) {
+    if (role !== "user") {
+      // Se não for user (ex: um admin), chuta ele para o dashboard de admin
       return NextResponse.redirect(new URL(ADMIN_ROOT, request.url));
     }
   }

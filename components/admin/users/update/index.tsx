@@ -112,7 +112,7 @@ export const UpdateUser = ({
               </DialogDescription>
             </DialogHeader>
             <form
-              id="create-user-form"
+              id="update-user-form"
               onSubmit={(e) => {
                 e.preventDefault();
                 form.handleSubmit();
