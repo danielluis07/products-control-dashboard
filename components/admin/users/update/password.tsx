@@ -140,7 +140,7 @@ export const UpdateUserPassword = ({
               }}
             />
             <Field>
-              <Button disabled={loading}>Atualizar</Button>
+              <Button disabled={loading}>Salvar</Button>
             </Field>
           </FieldGroup>
         </form>
