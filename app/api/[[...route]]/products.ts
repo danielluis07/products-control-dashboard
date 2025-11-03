@@ -12,9 +12,28 @@ const app = new Hono<{
 }>()
   .get("/", async (c) => {
     const session = c.get("session");
+    const { barcode } = c.req.query();
 
     if (!session) {
       return c.json({ message: "Não autorizado" }, 401);
+    }
+
+    if (barcode) {
+      try {
+        const [data] = await db
+          .select()
+          .from(products)
+          .where(eq(products.barcode, barcode));
+
+        if (!data) {
+          return c.json({ message: "Produto não encontrado no catálogo" }, 404);
+        }
+
+        return c.json({ data });
+      } catch (error) {
+        console.error("Erro ao buscar produto por barcode:", error);
+        return c.json({ message: "Erro ao buscar o produto" }, 500);
+      }
     }
 
     try {
@@ -39,6 +58,7 @@ const app = new Hono<{
       return c.json({ message: "Erro ao buscar os produtos" }, 500);
     }
   })
+
   .get("/:id", async (c) => {
     const session = c.get("session");
     const { id } = c.req.param();
