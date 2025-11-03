@@ -40,28 +40,31 @@ export const UpdateUserPassword = ({ id }: { id: string }) => {
     onSubmit: async ({ value }) => {
       setLoading(true);
 
-      const { data, error } = await authClient.changePassword({
-        newPassword: value.new_password,
-        currentPassword: value.current_password,
-        revokeOtherSessions: true,
-      });
+      try {
+        const { data, error } = await authClient.changePassword({
+          newPassword: value.new_password,
+          currentPassword: value.current_password,
+          revokeOtherSessions: true,
+        });
 
-      if (error) {
-        switch (error.code) {
-          case "INVALID_PASSWORD":
-            toast.error("A senha atual está incorreta");
-            break;
-          default:
-            toast.error("Erro ao atualizar senha do usuário");
+        if (error) {
+          switch (error.code) {
+            case "INVALID_PASSWORD":
+              toast.error("A senha atual está incorreta");
+              break;
+            default:
+              toast.error("Erro ao atualizar senha do usuário");
+          }
+          return;
         }
 
-        console.error("Error updating user password:", error);
-        setLoading(false);
-        return;
-      }
-
-      if (data) {
-        toast.success("Senha atualizada com sucesso");
+        if (data) {
+          toast.success("Senha atualizada com sucesso");
+        }
+      } catch (error) {
+        console.error("Unexpected error updating user password:", error);
+        toast.error("Erro ao atualizar senha do usuário");
+      } finally {
         setLoading(false);
       }
     },

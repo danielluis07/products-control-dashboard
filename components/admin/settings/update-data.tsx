@@ -46,23 +46,27 @@ export const UpdateUserData = ({
     },
     onSubmit: async ({ value }) => {
       setLoading(true);
-      const { data, error } = await authClient.admin.updateUser({
-        userId: value.id,
-        data: {
-          name: value.name,
-          email: value.email,
-        },
-      });
 
-      if (error) {
-        console.error(error);
-        toast.error("Erro ao atualizar os dados");
-        setLoading(false);
-        return;
-      }
+      try {
+        const { error } = await authClient.admin.updateUser({
+          userId: value.id,
+          data: {
+            name: value.name,
+            email: value.email,
+          },
+        });
 
-      if (data) {
+        if (error) {
+          console.error("API error updating user:", error);
+          toast.error("Erro ao atualizar os dados");
+          return;
+        }
+
         toast.success("Dados atualizados com sucesso!");
+      } catch (err) {
+        console.error("Unexpected error updating user data:", err);
+        toast.error("Erro ao atualizar os dados");
+      } finally {
         setLoading(false);
       }
     },

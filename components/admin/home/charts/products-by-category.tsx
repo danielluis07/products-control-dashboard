@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import {
   ChartConfig,
@@ -7,6 +8,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const chartConfig = {
   count: {
@@ -23,11 +25,21 @@ export function ProductsByCategoryChart({
     count: number;
   }>;
 }) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Formatar os dados para o gráfico
   const chartData = data.map((item) => ({
     category: item.categoryName || "Sem Categoria",
     count: item.count,
   }));
+
+  if (!isMounted) {
+    return <Skeleton className="min-h-[200px] w-full" />;
+  }
 
   return (
     <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
