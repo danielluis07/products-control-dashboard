@@ -69,8 +69,13 @@ const app = new Hono<{
    * (Refatorado para sintaxe SQL-style com múltiplas queries)
    */
   .get("/:id", async (c) => {
-    const authUser = c.get("user")!;
+    const session = c.get("session");
+    const authUser = c.get("user");
     const { id } = c.req.param();
+
+    if (!session || !authUser) {
+      return c.json({ message: "Usuário não autenticado" }, 401);
+    }
 
     try {
       // 1. Busca o item de inventário principal
@@ -128,8 +133,13 @@ const app = new Hono<{
    * (Sintaxe já era SQL-style)
    */
   .post("/", zValidator("json", createInventoryItemSchema), async (c) => {
-    const authUser = c.get("user")!;
+    const session = c.get("session");
+    const authUser = c.get("user");
     const values = c.req.valid("json");
+
+    if (!session || !authUser) {
+      return c.json({ message: "Usuário não autenticado" }, 401);
+    }
 
     try {
       const [data] = await db
@@ -158,13 +168,18 @@ const app = new Hono<{
    * (Sintaxe já era SQL-style, usando a transação)
    */
   .post("/:id/activity", zValidator("json", logActivitySchema), async (c) => {
-    const authUser = c.get("user")!;
+    const session = c.get("session");
+    const authUser = c.get("user");
     const inventoryItemId = c.req.param("id");
     const { action, quantity } = c.req.valid("json");
 
+    if (!session || !authUser) {
+      return c.json({ message: "Usuário não autenticado" }, 401);
+    }
+
     try {
-      const data = await db.transaction(async (tx) => {
-        // 1. Pega o item atual e trava a linha (para PostgreSQL)
+      const updatedItem = await db.transaction(async (tx) => {
+        // 1. Pega o item atual e trava a linha
         const [item] = await tx
           .select({
             currentQuantity: inventoryItems.currentQuantity,
@@ -176,25 +191,16 @@ const app = new Hono<{
               eq(inventoryItems.stationId, authUser.stationId!)
             )
           )
-          .for("update"); // Trava a linha para evitar concorrência
+          .for("update");
 
-        // 2. Verifica se o item existe
+        // 2. Verifica se o item existe - LANÇA ERRO para fazer rollback
         if (!item) {
-          tx.rollback();
-          return {
-            error:
-              "Item de inventário não encontrado ou não pertence a este posto",
-            status: 404,
-          };
+          throw new Error("ITEM_NOT_FOUND");
         }
 
-        // 3. Verifica se tem estoque suficiente
+        // 3. Verifica se tem estoque suficiente - LANÇA ERRO para fazer rollback
         if (item.currentQuantity < quantity) {
-          tx.rollback();
-          return {
-            error: `Quantidade insuficiente em estoque. (Atual: ${item.currentQuantity})`,
-            status: 400,
-          };
+          throw new Error(`INSUFFICIENT_STOCK:${item.currentQuantity}`);
         }
 
         // 4. Registra o log de atividade
@@ -202,7 +208,7 @@ const app = new Hono<{
           inventoryItemId: inventoryItemId,
           userId: authUser.id,
           action: action,
-          quantityChange: -Math.abs(quantity), // Garante que é negativo
+          quantityChange: -Math.abs(quantity),
         });
 
         // 5. Atualiza a quantidade do lote
@@ -218,17 +224,36 @@ const app = new Hono<{
           .where(eq(inventoryItems.id, inventoryItemId))
           .returning();
 
-        return { data: updatedItem };
+        return updatedItem; // Retorna apenas o dado em caso de sucesso
       });
 
-      // Retorna o resultado da transação
-      if (data.error) {
-        return c.json({ message: data.error });
-      }
-
-      return c.json({ data: data.data });
+      return c.json({ data: updatedItem });
     } catch (error) {
       console.error("Erro ao registrar atividade:", error);
+
+      // Tratamento específico dos erros de negócio
+      if (error instanceof Error) {
+        if (error.message === "ITEM_NOT_FOUND") {
+          return c.json(
+            {
+              message:
+                "Item de inventário não encontrado ou não pertence a este posto",
+            },
+            404
+          );
+        }
+
+        if (error.message.startsWith("INSUFFICIENT_STOCK:")) {
+          const currentQty = error.message.split(":")[1];
+          return c.json(
+            {
+              message: `Quantidade insuficiente em estoque. (Atual: ${currentQty})`,
+            },
+            400
+          );
+        }
+      }
+
       return c.json({ message: "Erro ao registrar atividade" }, 500);
     }
   });
