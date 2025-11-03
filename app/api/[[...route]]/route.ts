@@ -5,6 +5,7 @@ import stations from "@/app/api/[[...route]]/stations";
 import categories from "@/app/api/[[...route]]/categories";
 import users from "@/app/api/[[...route]]/users";
 import products from "@/app/api/[[...route]]/products";
+import inventoryItems from "@/app/api/[[...route]]/inventory-items";
 
 export type AppVariables = {
   user: typeof auth.$Infer.Session.user | null;
@@ -17,6 +18,7 @@ const app = new Hono<{
 
 // Auth handler FIRST - before session middleware
 app.on(["POST", "GET"], "/auth/**", (c) => {
+  console.log("Auth route accessed");
   return auth.handler(c.req.raw);
 });
 
@@ -38,7 +40,8 @@ const routes = app
   .route("/categories", categories)
   .route("/stations", stations)
   .route("/users", users)
-  .route("/products", products);
+  .route("/products", products)
+  .route("/inventory-items", inventoryItems);
 
 export const GET = handle(app);
 export const POST = handle(app);

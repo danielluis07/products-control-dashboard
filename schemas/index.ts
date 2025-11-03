@@ -1,3 +1,4 @@
+import { activityActionEnum } from "@/db/schema";
 import { email, z } from "zod";
 
 export const signUpSchema = z
@@ -90,4 +91,24 @@ export const updateProductSchema = z.object({
     .min(1, "O limite de notificação deve ser pelo menos 1 dia")
     .default(7)
     .nonoptional(),
+});
+
+export const createInventoryItemSchema = z.object({
+  productId: z.string().min(1, "Selecione um produto"),
+  expiryDate: z.coerce.date({ message: "Data de validade inválida" }),
+  initialQuantity: z.coerce
+    .number()
+    .int()
+    .positive("A quantidade deve ser maior que zero"),
+});
+
+export const logActivitySchema = z.object({
+  action: z.enum(activityActionEnum.enumValues, {
+    message: "Ação inválida",
+  }),
+  // Quantidade que está sendo REMOVIDA
+  quantity: z.coerce
+    .number()
+    .int()
+    .positive("A quantidade deve ser maior que zero"),
 });
