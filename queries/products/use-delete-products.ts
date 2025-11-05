@@ -8,7 +8,7 @@ type ResponseType = InferResponseType<
 >;
 
 type Product = InferResponseType<
-  (typeof client.api.products)["$get"],
+  (typeof client.api.products.dashboard)["$get"],
   200
 >["data"];
 

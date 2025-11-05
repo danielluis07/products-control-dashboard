@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, XAxis, YAxis, Cell } from "recharts";
 import {
   ChartConfig,
   ChartContainer,
@@ -41,6 +41,13 @@ export function ActiveProductsChart({
     { category: "Total", count: totalProducts },
   ];
 
+  const colors = [
+    "var(--chart-1)",
+    "var(--chart-2)",
+    "var(--chart-3)",
+    "var(--chart-4)",
+  ];
+
   if (!isMounted) {
     return <Skeleton className="min-h-[200px] w-full" />;
   }
@@ -56,7 +63,11 @@ export function ActiveProductsChart({
         />
         <YAxis tickLine={false} axisLine={false} tickMargin={8} />
         <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="count" fill="var(--color-count)" radius={8} />
+        <Bar dataKey="count" radius={8}>
+          {chartData.map((_, index) => (
+            <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+          ))}
+        </Bar>
       </BarChart>
     </ChartContainer>
   );

@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 const chartConfig = {
   count: {
     label: "Produtos",
-    color: "hsl(var(--chart-2))",
+    color: "var(--primary)",
   },
 } satisfies ChartConfig;
 
@@ -55,7 +55,7 @@ export function ProductsByCategoryChart({
         />
         <YAxis tickLine={false} axisLine={false} tickMargin={8} />
         <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="count" fill="var(--color-count)" radius={8} />
+        <Bar dataKey="count" fill="var(--primary)" radius={8} />
       </BarChart>
     </ChartContainer>
   );
