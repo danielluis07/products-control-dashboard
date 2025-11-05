@@ -1,8 +1,8 @@
 import { StatsCard } from "@/components/admin/home/stats-card";
 import { requireAuth } from "@/lib/auth-utils";
 import { db } from "@/db";
-import { categories, products } from "@/db/schema";
-import { and, count, gt, gte, lte, eq } from "drizzle-orm";
+import { categories, products, inventoryItems } from "@/db/schema";
+import { and, count, sql, eq } from "drizzle-orm";
 import { ActiveProductsChart } from "@/components/admin/home/charts/active-products";
 import { ProductsByCategoryChart } from "@/components/admin/home/charts/products-by-category";
 
@@ -21,27 +21,41 @@ const MainPage = async () => {
       .from(products)
       .then((res) => res[0]),
 
+    // Produtos com vencimento até 3 dias (no fuso de SP)
     db
       .select({ count: count() })
-      .from(products)
-      .where(lte(products.notificationThresholdDays, 3))
-      .then((res) => res[0]),
-
-    db
-      .select({ count: count() })
-      .from(products)
+      .from(inventoryItems)
       .where(
         and(
-          gte(products.notificationThresholdDays, 4),
-          lte(products.notificationThresholdDays, 15)
+          eq(inventoryItems.status, "in_stock"),
+          sql`${inventoryItems.expiryDate} AT TIME ZONE 'America/Sao_Paulo' <= (NOW() AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '3 days'`
         )
       )
       .then((res) => res[0]),
 
+    // Produtos com vencimento entre 4 e 15 dias
     db
       .select({ count: count() })
-      .from(products)
-      .where(gt(products.notificationThresholdDays, 15))
+      .from(inventoryItems)
+      .where(
+        and(
+          eq(inventoryItems.status, "in_stock"),
+          sql`${inventoryItems.expiryDate} AT TIME ZONE 'America/Sao_Paulo' > (NOW() AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '3 days'`,
+          sql`${inventoryItems.expiryDate} AT TIME ZONE 'America/Sao_Paulo' <= (NOW() AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '15 days'`
+        )
+      )
+      .then((res) => res[0]),
+
+    // Produtos com vencimento acima de 15 dias
+    db
+      .select({ count: count() })
+      .from(inventoryItems)
+      .where(
+        and(
+          eq(inventoryItems.status, "in_stock"),
+          sql`${inventoryItems.expiryDate} AT TIME ZONE 'America/Sao_Paulo' > (NOW() AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '15 days'`
+        )
+      )
       .then((res) => res[0]),
 
     db
