@@ -36,7 +36,7 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-const routes = app
+const _routes = app
   .route("/categories", categories)
   .route("/stations", stations)
   .route("/users", users)
@@ -48,4 +48,4 @@ export const POST = handle(app);
 export const PATCH = handle(app);
 export const DELETE = handle(app);
 
-export type AppType = typeof routes;
+export type AppType = typeof _routes;
