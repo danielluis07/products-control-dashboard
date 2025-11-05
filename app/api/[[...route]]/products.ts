@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { zValidator } from "@hono/zod-validator";
 import { categories, products } from "@/db/schema";
 import type { AppVariables } from "@/app/api/[[...route]]/route";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, sql } from "drizzle-orm";
 import { createProductSchema, updateProductSchema } from "@/schemas";
 
 const app = new Hono<{
@@ -36,7 +36,7 @@ const app = new Hono<{
       const whereConditions = [];
 
       if (search) {
-        whereConditions.push(eq(products.name, `%${search}%`));
+        whereConditions.push(ilike(products.name, `%${search}%`));
       }
 
       if (barcode) {
