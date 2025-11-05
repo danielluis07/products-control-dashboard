@@ -28,6 +28,7 @@ const MainPage = async () => {
       .where(
         and(
           eq(inventoryItems.status, "in_stock"),
+          sql`${inventoryItems.expiryDate} AT TIME ZONE 'America/Sao_Paulo' >= (NOW() AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '3 days'`,
           sql`${inventoryItems.expiryDate} AT TIME ZONE 'America/Sao_Paulo' <= (NOW() AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '3 days'`
         )
       )
