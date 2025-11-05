@@ -200,7 +200,7 @@ export const notifications = pgTable("notifications", {
  */
 
 // Relações da tabela `stations`
-export const stationsRelations = relations(stations, ({ many, one }) => ({
+export const stationsRelations = relations(stations, ({ many }) => ({
   // Um posto tem muitos usuários (funcionários/gerentes)
   users: many(user),
   // Um posto tem muitos itens de inventário
