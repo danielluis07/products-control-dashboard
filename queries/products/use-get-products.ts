@@ -5,7 +5,7 @@ export const useGetProducts = () => {
   const query = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
-      const res = await client.api.products.$get();
+      const res = await client.api.products.dashboard.$get();
 
       if (!res.ok) {
         const errorData = (await res.json().catch(() => ({}))) as {

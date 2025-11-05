@@ -19,16 +19,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { signUpSchema } from "@/schemas";
 import { Button } from "@/components/ui/button";
-import { authClient } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+// import { authClient } from "@/lib/auth-client";
+// import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { getErrorMessage } from "@/lib/auth-client";
+// import { getErrorMessage } from "@/lib/auth-client";
 
 type FormData = z.infer<typeof signUpSchema>;
 
 export const Register = () => {
-  const { signUp } = authClient;
-  const router = useRouter();
+  // const { signUp } = authClient;
+  // const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const form = useForm({
@@ -41,8 +41,8 @@ export const Register = () => {
     validators: {
       onSubmit: signUpSchema,
     },
-    onSubmit: async ({ value }) => {
-      await signUp.email(
+    onSubmit: async () => {
+      /*       await signUp.email(
         {
           email: value.email,
           password: value.password,
@@ -63,7 +63,10 @@ export const Register = () => {
             setLoading(false);
           },
         }
-      );
+      ); */
+
+      toast.error("Registro desativado temporariamente.");
+      setLoading(false);
     },
   });
   return (
