@@ -5,7 +5,7 @@ import { zValidator } from "@hono/zod-validator";
 import { stations } from "@/db/schema";
 import type { AppVariables } from "@/app/api/[[...route]]/route";
 import { eq, inArray } from "drizzle-orm";
-import { createStationSchema } from "@/schemas";
+import { createStationSchema, updateStationSchema } from "@/schemas";
 
 const app = new Hono<{
   Variables: AppVariables;
@@ -94,6 +94,35 @@ const app = new Hono<{
         return c.json({ message: "Erro ao deletar postos" }, 500);
       }
     }
-  );
+  )
+  .patch("/:id", zValidator("json", updateStationSchema), async (c) => {
+    const session = c.get("session");
+    const authUser = c.get("user");
+    const { id } = c.req.param();
+    const values = c.req.valid("json");
+
+    if (!session || authUser?.role !== "admin") {
+      return c.json({ message: "Não autorizado" }, 401);
+    }
+
+    try {
+      const [data] = await db
+        .update(stations)
+        .set({
+          name: values.name,
+        })
+        .where(eq(stations.id, id))
+        .returning();
+
+      if (!data) {
+        return c.json({ message: "Posto não encontrado" }, 404);
+      }
+
+      return c.json({ data });
+    } catch (error) {
+      console.error("Erro ao atualizar o posto:", error);
+      return c.json({ message: "Erro ao atualizar o posto" }, 500);
+    }
+  });
 
 export default app;
