@@ -9,7 +9,7 @@ import {
   user,
 } from "@/db/schema";
 import type { AppVariables } from "@/app/api/[[...route]]/route";
-import { eq, and, asc, ne } from "drizzle-orm";
+import { eq, and, asc, ne, ilike, sql } from "drizzle-orm";
 import { createInventoryItemSchema, logActivitySchema } from "@/schemas";
 
 const app = new Hono<{
@@ -18,55 +18,99 @@ const app = new Hono<{
   /**
    * GET /
    * Lista todos os itens de inventário ATIVOS para o posto do gerente.
-   * (Refatorado para sintaxe SQL-style)
    */
-  .get("/", async (c) => {
-    const session = c.get("session");
-    const authUser = c.get("user");
+  .get(
+    "/",
+    zValidator(
+      "query",
+      z.object({
+        search: z.string().optional(),
+        page: z.string().optional().default("1"),
+        limit: z.string().optional().default("20"),
+      })
+    ),
+    async (c) => {
+      const session = c.get("session");
+      const authUser = c.get("user");
+      const { search, page, limit } = c.req.valid("query");
 
-    if (!session || !authUser) {
-      return c.json({ message: "Usuário não autenticado" }, 401);
+      if (!session || !authUser) {
+        return c.json({ message: "Usuário não autenticado" }, 401);
+      }
+
+      if (!authUser.stationId) {
+        return c.json(
+          { message: "Usuário não está associado a nenhum posto" },
+          400
+        );
+      }
+
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const offset = (pageNum - 1) * limitNum;
+
+      const whereConditions = [
+        eq(inventoryItems.stationId, authUser.stationId),
+        ne(inventoryItems.status, "empty"),
+      ];
+
+      if (search) {
+        whereConditions.push(ilike(products.name, `%${search}%`));
+      }
+
+      try {
+        // Busca os dados paginados
+        const data = await db
+          .select({
+            id: inventoryItems.id,
+            productId: inventoryItems.productId,
+            stationId: inventoryItems.stationId,
+            expiryDate: inventoryItems.expiryDate,
+            initialQuantity: inventoryItems.initialQuantity,
+            currentQuantity: inventoryItems.currentQuantity,
+            addedAt: inventoryItems.addedAt,
+            status: inventoryItems.status,
+            productName: products.name,
+            productBarcode: products.barcode,
+            productImageUrl: products.imageUrl,
+          })
+          .from(inventoryItems)
+          .leftJoin(products, eq(products.id, inventoryItems.productId))
+          .where(and(...whereConditions))
+          .orderBy(asc(inventoryItems.expiryDate))
+          .limit(limitNum)
+          .offset(offset);
+
+        // Conta o total de itens (para saber se há mais páginas)
+        const [totalResult] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(inventoryItems)
+          .leftJoin(products, eq(products.id, inventoryItems.productId))
+          .where(and(...whereConditions));
+
+        const total = Number(totalResult.count);
+        const hasMore = offset + data.length < total;
+
+        return c.json({
+          data,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            hasMore,
+          },
+        });
+      } catch (error) {
+        console.error("Erro ao buscar inventário:", error);
+        return c.json({ message: "Erro ao buscar inventário" }, 500);
+      }
     }
-
-    try {
-      const data = await db
-        .select({
-          // Campos de inventoryItems
-          id: inventoryItems.id,
-          productId: inventoryItems.productId,
-          stationId: inventoryItems.stationId,
-          expiryDate: inventoryItems.expiryDate,
-          initialQuantity: inventoryItems.initialQuantity,
-          currentQuantity: inventoryItems.currentQuantity,
-          addedAt: inventoryItems.addedAt,
-          status: inventoryItems.status,
-          // Campos de products (via join)
-          productName: products.name,
-          productBarcode: products.barcode,
-          productImageUrl: products.imageUrl,
-        })
-        .from(inventoryItems)
-        .leftJoin(products, eq(products.id, inventoryItems.productId))
-        .where(
-          and(
-            eq(inventoryItems.stationId, authUser.stationId!),
-            ne(inventoryItems.status, "empty")
-          )
-        )
-        .orderBy(asc(inventoryItems.expiryDate));
-
-      return c.json({ data });
-    } catch (error) {
-      console.error("Erro ao buscar inventário:", error);
-      return c.json({ message: "Erro ao buscar inventário" }, 500);
-    }
-  })
+  )
 
   /**
    * GET /:id
    * Busca um item de inventário específico do posto do gerente,
    * incluindo seu produto e histórico de atividades.
-   * (Refatorado para sintaxe SQL-style com múltiplas queries)
    */
   .get("/:id", async (c) => {
     const session = c.get("session");
@@ -77,6 +121,13 @@ const app = new Hono<{
       return c.json({ message: "Usuário não autenticado" }, 401);
     }
 
+    if (!authUser.stationId) {
+      return c.json(
+        { message: "Usuário não está associado a nenhum posto" },
+        400
+      );
+    }
+
     try {
       // 1. Busca o item de inventário principal
       const [item] = await db
@@ -85,7 +136,7 @@ const app = new Hono<{
         .where(
           and(
             eq(inventoryItems.id, id),
-            eq(inventoryItems.stationId, authUser.stationId!)
+            eq(inventoryItems.stationId, authUser.stationId)
           )
         );
 
@@ -130,7 +181,6 @@ const app = new Hono<{
   /**
    * POST /
    * Adiciona um novo lote de produto ao inventário.
-   * (Sintaxe já era SQL-style)
    */
   .post("/", zValidator("json", createInventoryItemSchema), async (c) => {
     const session = c.get("session");
@@ -165,7 +215,6 @@ const app = new Hono<{
   /**
    * POST /:id/activity
    * Registra uma atividade em um lote (venda, remoção, etc.)
-   * (Sintaxe já era SQL-style, usando a transação)
    */
   .post("/:id/activity", zValidator("json", logActivitySchema), async (c) => {
     const session = c.get("session");

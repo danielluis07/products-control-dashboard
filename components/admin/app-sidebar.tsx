@@ -18,6 +18,7 @@ import { NavUser } from "@/components/nav-user";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
 
 const items = [
   {
@@ -61,7 +62,7 @@ export function AdminSidebar() {
           )}>
           <h1
             className={cn(
-              "text-xl font-bold",
+              "text-xl font-bold text-primary",
               state === "collapsed" && "text-center"
             )}>
             {state === "expanded" ? "FreshTrack" : "FT"}
@@ -75,11 +76,11 @@ export function AdminSidebar() {
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                  <SidebarMenuButton className="hover:text-primary" asChild>
+                    <Link href={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
