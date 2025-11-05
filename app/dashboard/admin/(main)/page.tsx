@@ -93,7 +93,6 @@ const MainPage = async () => {
             upTo3Days={upTo3Days.count}
             fourTo15Days={fourTo15Days.count}
             above15Days={above15Days.count}
-            totalProducts={totalProducts.count}
           />
         </div>
 

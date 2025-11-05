@@ -21,12 +21,10 @@ export function ActiveProductsChart({
   upTo3Days,
   fourTo15Days,
   above15Days,
-  totalProducts,
 }: {
   upTo3Days: number;
   fourTo15Days: number;
   above15Days: number;
-  totalProducts: number;
 }) {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -38,15 +36,9 @@ export function ActiveProductsChart({
     { category: "Até 3 dias", count: upTo3Days },
     { category: "4 a 15 dias", count: fourTo15Days },
     { category: "Acima de 15 dias", count: above15Days },
-    { category: "Total", count: totalProducts },
   ];
 
-  const colors = [
-    "var(--chart-1)",
-    "var(--chart-2)",
-    "var(--chart-3)",
-    "var(--chart-4)",
-  ];
+  const colors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)"];
 
   if (!isMounted) {
     return <Skeleton className="min-h-[200px] w-full" />;
