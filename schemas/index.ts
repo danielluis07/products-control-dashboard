@@ -40,6 +40,12 @@ export const createStationSchema = z.object({
   address: z.string().optional(),
 });
 
+export const updateStationSchema = z.object({
+  id: z.string().min(1, "Selecione um posto"),
+  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
+  address: z.string().optional(),
+});
+
 export const createUserSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   email: z.email("Insira um email válido"),

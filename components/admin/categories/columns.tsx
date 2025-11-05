@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { client } from "@/lib/hono";
 import { ColumnDef } from "@tanstack/react-table";
 import { InferResponseType } from "hono";
-import { CategoriesCellAction } from "./cell-action";
+import { CategoriesCellAction } from "@/components/admin/categories/cell-action";
 
 export type Response = InferResponseType<
   (typeof client.api.categories)["$get"],

@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { client } from "@/lib/hono";
 import { ColumnDef } from "@tanstack/react-table";
 import { InferResponseType } from "hono";
+import { StationsCellAction } from "@/components/admin/stations/cell-action";
 
 export type Response = InferResponseType<
   (typeof client.api.stations)["$get"],
@@ -36,5 +37,14 @@ export const columns: ColumnDef<Response>[] = [
   {
     accessorKey: "name",
     header: "Nome",
+  },
+  {
+    id: "actions",
+    header: "Ações",
+    cell: ({ row }) => {
+      const { id, name } = row.original;
+
+      return <StationsCellAction id={id} name={name} />;
+    },
   },
 ];
