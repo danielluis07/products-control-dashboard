@@ -108,7 +108,9 @@ const app = new Hono<{
     try {
       const [data] = await db
         .update(stations)
-        .set(values)
+        .set({
+          name: values.name,
+        })
         .where(eq(stations.id, id))
         .returning();
 
