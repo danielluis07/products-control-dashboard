@@ -50,7 +50,7 @@ export const SignIn = () => {
             setLoading(true);
           },
           onSuccess: async () => {
-            router.push("/dashboard");
+            router.push("/dashboard/admin");
           },
           onError: (ctx) => {
             console.error("Sign-in error:", ctx.error);

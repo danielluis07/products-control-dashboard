@@ -5,7 +5,7 @@ import { zValidator } from "@hono/zod-validator";
 import { categories } from "@/db/schema";
 import type { AppVariables } from "@/app/api/[[...route]]/route";
 import { eq, inArray } from "drizzle-orm";
-import { createCategorySchema } from "@/schemas";
+import { createCategorySchema, updateCategorySchema } from "@/schemas";
 
 const app = new Hono<{
   Variables: AppVariables;
@@ -94,6 +94,33 @@ const app = new Hono<{
         return c.json({ message: "Erro ao deletar categorias" }, 500);
       }
     }
-  );
+  )
+  .patch("/:id", zValidator("json", updateCategorySchema), async (c) => {
+    const session = c.get("session");
+    const authUser = c.get("user");
+    const { id } = c.req.param();
+    const { name } = c.req.valid("json");
+
+    if (!session || authUser?.role !== "admin") {
+      return c.json({ message: "Não autorizado" }, 401);
+    }
+
+    try {
+      const [data] = await db
+        .update(categories)
+        .set({ name })
+        .where(eq(categories.id, id))
+        .returning();
+
+      if (!data) {
+        return c.json({ message: "Categoria não encontrada" }, 404);
+      }
+
+      return c.json({ data });
+    } catch (error) {
+      console.error("Erro ao atualizar a categoria:", error);
+      return c.json({ message: "Erro ao atualizar a categoria" }, 500);
+    }
+  });
 
 export default app;

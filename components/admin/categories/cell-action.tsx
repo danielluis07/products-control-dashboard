@@ -9,40 +9,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Edit } from "lucide-react";
 import { useState } from "react";
-import { UpdateProduct } from "@/components/admin/products/update";
+import { UpdateCategory } from "@/components/admin/categories/update";
 
-export const ProductsCellAction = ({
+export const CategoriesCellAction = ({
   id,
   name,
-  categoryId,
-  notificationThresholdDays,
-  barcode,
-  description,
-  imageUrl,
 }: {
   id: string;
   name: string;
-  categoryId: string | null;
-  notificationThresholdDays: number;
-  barcode: string | null;
-  description: string | null;
-  imageUrl: string | null;
 }) => {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <UpdateProduct
-        id={id}
-        name={name}
-        categoryId={categoryId}
-        notificationThresholdDays={notificationThresholdDays}
-        barcode={barcode}
-        description={description}
-        imageUrl={imageUrl}
-        open={open}
-        setOpen={setOpen}
-      />
+      <UpdateCategory id={id} name={name} open={open} setOpen={setOpen} />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">

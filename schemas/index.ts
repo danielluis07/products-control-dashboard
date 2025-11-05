@@ -30,6 +30,11 @@ export const createCategorySchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
 });
 
+export const updateCategorySchema = z.object({
+  id: z.string().min(1, "Selecione uma categoria"),
+  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
+});
+
 export const createStationSchema = z.object({
   name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   address: z.string().optional(),
