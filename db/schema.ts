@@ -45,6 +45,15 @@ export const user = pgTable("user", {
     .notNull(),
 });
 
+export const jwks = pgTable("jwks", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  publicKey: text("public_key"),
+  privateKey: text("private_key"),
+  createdAt: timestamp("created_at").notNull(),
+});
+
 export const session = pgTable("session", {
   id: text("id")
     .primaryKey()
