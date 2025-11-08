@@ -134,7 +134,7 @@ export const products = pgTable("products", {
   imageUrl: text("image_url"),
   categoryId: text("category_id").references(() => categories.id, {
     onDelete: "set null",
-  }), // A qual categoria pertence
+  }),
   // Dias de antecedência para notificar sobre o vencimento
   // Ex: 7 dias para bebidas, 30 dias para óleos
   notificationThresholdDays: integer("notification_threshold_days")
