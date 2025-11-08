@@ -159,10 +159,9 @@ const app = new Hono<{
   })
   .post("/", zValidator("json", createProductSchema), async (c) => {
     const session = c.get("session");
-    const authUser = c.get("user");
     const values = c.req.valid("json");
 
-    if (!session || authUser?.role !== "admin") {
+    if (!session) {
       return c.json({ message: "Não autorizado" }, 401);
     }
 
