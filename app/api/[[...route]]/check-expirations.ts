@@ -117,18 +117,29 @@ const app = new Hono<{
   // -----------------------------------------------------------------
 
   // Agrupar os *novos* itens por gerente
-  const itemsByManager = itemsToNotify.reduce((acc, item) => {
-    const email = item.managerEmail;
-    if (!acc[email]) {
-      acc[email] = {
-        managerName: item.managerName || "Gerente",
-        items: [],
-      };
-    }
-    // @ts-ignore - Adaptar 'items' para o que o EmailTemplate espera
-    acc[email].items.push(item);
-    return acc;
-  }, {} as Record<string, { managerName: string; items: Omit<ItemToNotify, "managerEmail" | "managerName" | "managerId" | "stationId">[] }>);
+  const itemsByManager = itemsToNotify.reduce(
+    (acc, item) => {
+      const email = item.managerEmail;
+      if (!acc[email]) {
+        acc[email] = {
+          managerName: item.managerName || "Gerente",
+          items: [],
+        };
+      }
+      acc[email].items.push(item);
+      return acc;
+    },
+    {} as Record<
+      string,
+      {
+        managerName: string;
+        items: Omit<
+          ItemToNotify,
+          "managerEmail" | "managerName" | "managerId" | "stationId"
+        >[];
+      }
+    >
+  );
 
   let sentEmails = 0;
   let failedEmails = 0;
@@ -145,7 +156,7 @@ const app = new Hono<{
         subject: `Alerta: Você tem ${items.length} novos lotes próximos do vencimento!`,
         react: EmailTemplate({
           firstName: managerName,
-          // @ts-ignore - Adaptar 'items' para o que o EmailTemplate espera
+          // @ts-expect-error - Adaptar 'items' para o que o EmailTemplate espera
           items: items,
         }),
       });
