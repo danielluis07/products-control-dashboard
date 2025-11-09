@@ -6,6 +6,7 @@ import categories from "@/app/api/[[...route]]/categories";
 import users from "@/app/api/[[...route]]/users";
 import products from "@/app/api/[[...route]]/products";
 import inventoryItems from "@/app/api/[[...route]]/inventory-items";
+import checkExpirations from "@/app/api/[[...route]]/check-expirations";
 
 export type AppVariables = {
   user: typeof auth.$Infer.Session.user | null;
@@ -41,7 +42,8 @@ const _routes = app
   .route("/stations", stations)
   .route("/users", users)
   .route("/products", products)
-  .route("/inventory-items", inventoryItems);
+  .route("/inventory-items", inventoryItems)
+  .route("/check-expirations", checkExpirations);
 
 export const GET = handle(app);
 export const POST = handle(app);
