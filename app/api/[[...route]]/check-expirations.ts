@@ -61,7 +61,7 @@ const app = new Hono<{
       .where(
         and(
           // Condição 1: Apenas itens em estoque
-          eq(inventoryItems.status, "in_stock"), // Usando seu campo 'status'
+          eq(inventoryItems.status, "in_stock"),
 
           // Condição 2: Dentro da janela de alerta
           lt(
@@ -70,7 +70,6 @@ const app = new Hono<{
           ),
 
           // Condição 3: Apenas o gerente daquele posto
-          // !!! VERIFIQUE ESTE VALOR 'manager' com seu enum !!!
           eq(user.role, "user"),
 
           // Condição 4 (CRÍTICA): E para o qual NENHUMA notificação foi enviada ainda.
@@ -100,7 +99,6 @@ const app = new Hono<{
     inventoryItemId: item.inventoryItemId,
     userId: item.managerId,
     stationId: item.stationId,
-    // TODO: Criar uma mensagem mais dinâmica aqui
     message: `Produto "${item.productName}" (${item.quantity}un) está próximo do vencimento.`,
   }));
 
@@ -113,7 +111,7 @@ const app = new Hono<{
   }
 
   // -----------------------------------------------------------------
-  // PONTO 4: Agrupar e Enviar E-mails
+  // PONTO 4: Agrupar e Enviar E-mails (COM BATCHING)
   // -----------------------------------------------------------------
 
   // Agrupar os *novos* itens por gerente
@@ -143,37 +141,54 @@ const app = new Hono<{
 
   let sentEmails = 0;
   let failedEmails = 0;
-  let adminEmailStatus: string = "não configurado";
 
-  // Enviar e-mail para cada gerente (APENAS SOBRE OS ITENS NOVOS)
+  // Array para o envio em lote
+  const managerEmailsToSend = [];
+
+  // PREPARAR os e-mails para o lote
   for (const [email, data] of Object.entries(itemsByManager)) {
     const { managerName, items } = data;
 
-    try {
-      await resend.emails.send({
-        from: "Alertas <alertas@gasfortcontagem.online>",
-        to: [email],
-        subject: `Alerta: Você tem ${items.length} novos lotes próximos do vencimento!`,
-        react: EmailTemplate({
-          firstName: managerName,
-          // @ts-expect-error - Adaptar 'items' para o que o EmailTemplate espera
-          items: items,
-        }),
-      });
-      sentEmails++;
-    } catch (emailError) {
-      console.error(`Falha ao enviar e-mail para ${email}:`, emailError);
-      failedEmails++;
+    managerEmailsToSend.push({
+      from: "Alertas <alertas@gasfortcontagem.online>",
+      to: [email],
+      subject: `Alerta: Você tem ${items.length} novos lotes próximos do vencimento!`,
+      react: EmailTemplate({
+        firstName: managerName,
+        // @ts-expect-error - Adaptar 'items' para o que o EmailTemplate espera
+        items: items,
+      }),
+    });
+  }
+
+  // ENVIAR O LOTE DE UMA VEZ
+  try {
+    if (managerEmailsToSend.length > 0) {
+      // Chamada única da API para todos os gerentes
+      const { data, error } = await resend.batch.send(managerEmailsToSend);
+
+      if (error) {
+        console.error("Falha ao enviar lote para gerentes:", error);
+        failedEmails = managerEmailsToSend.length;
+      } else {
+        console.log("E-mails em lote enviados com sucesso:", data);
+        sentEmails = managerEmailsToSend.length;
+      }
     }
+  } catch (batchError) {
+    console.error("Erro catastrófico no envio em lote:", batchError);
+    failedEmails = managerEmailsToSend.length;
   }
 
   // -----------------------------------------------------------------
   // PONTO 5: Enviar E-mail de Resumo para o ADMIN
   // -----------------------------------------------------------------
+  let adminEmailStatus: string = "não configurado";
   const adminEmail = process.env.ADMIN_EMAIL;
 
   if (adminEmail && itemsToNotify.length > 0) {
     try {
+      // Esta será agora a segunda (e última) chamada à API
       await resend.emails.send({
         from: "Alertas <alertas@gasfortcontagem.online>",
         to: [adminEmail],
