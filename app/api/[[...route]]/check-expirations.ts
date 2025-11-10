@@ -27,7 +27,7 @@ export type ItemToNotify = {
 
 const app = new Hono<{
   Variables: AppVariables;
-}>().post("/", async (c) => {
+}>().get("/", async (c) => {
   // -----------------------------------------------------------------
   // PONTO 1: Autenticação
   // -----------------------------------------------------------------
