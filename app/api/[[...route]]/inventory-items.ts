@@ -9,7 +9,7 @@ import {
   user,
 } from "@/db/schema";
 import type { AppVariables } from "@/app/api/[[...route]]/route";
-import { eq, and, asc, ne, ilike, sql } from "drizzle-orm";
+import { eq, and, asc, ne, ilike, sql, inArray } from "drizzle-orm";
 import { createInventoryItemSchema, logActivitySchema } from "@/schemas";
 
 const app = new Hono<{
@@ -212,6 +212,52 @@ const app = new Hono<{
     }
   })
 
+  /**
+   * POST /
+   * Delete um ou mais lotes de produto ao inventário.
+   */
+  .post(
+    "/delete",
+    zValidator(
+      "json",
+      z.object({
+        ids: z.array(z.string()),
+      })
+    ),
+    async (c) => {
+      const session = c.get("session");
+      const authUser = c.get("user");
+      const { ids } = c.req.valid("json");
+
+      if (!session || !authUser) {
+        return c.json({ message: "Usuário não autenticado" }, 401);
+      }
+
+      if (!authUser.stationId) {
+        return c.json(
+          { message: "Usuário não está associado a nenhum posto" },
+          400
+        );
+      }
+
+      try {
+        const [data] = await db
+          .delete(inventoryItems)
+          .where(
+            and(
+              eq(inventoryItems.stationId, authUser.stationId),
+              inArray(inventoryItems.id, ids)
+            )
+          )
+          .returning();
+
+        return c.json({ data });
+      } catch (error) {
+        console.error("Erro ao deletar itens do inventário:", error);
+        return c.json({ message: "Erro ao deletar itens do inventário" }, 500);
+      }
+    }
+  )
   /**
    * POST /:id/activity
    * Registra uma atividade em um lote (venda, remoção, etc.)
