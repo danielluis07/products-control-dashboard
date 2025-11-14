@@ -240,8 +240,12 @@ const app = new Hono<{
         );
       }
 
+      if (ids.length === 0) {
+        return c.json({ message: "Nenhum ID fornecido para exclusão" }, 400);
+      }
+
       try {
-        const [data] = await db
+        const data = await db
           .delete(inventoryItems)
           .where(
             and(
@@ -250,6 +254,13 @@ const app = new Hono<{
             )
           )
           .returning();
+
+        if (data.length === 0) {
+          return c.json(
+            { message: "Nenhum item encontrado para deletar" },
+            404
+          );
+        }
 
         return c.json({ data });
       } catch (error) {
