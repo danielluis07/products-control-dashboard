@@ -94,7 +94,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div>
-      <div className="flex items-center justify-between py-4">
+      <div className="flex items-center justify-end h-12">
         {table.getFilteredSelectedRowModel().rows.length > 0 && (
           <Button
             variant="destructive"
