@@ -4,13 +4,8 @@ import { client } from "@/lib/hono";
 import { toast } from "sonner";
 
 type ResponseType = InferResponseType<
-  (typeof client.api)["inventory-items"]["delete"]["$post"]
+  (typeof client.api)["inventory-items"]["admin"]["delete"]["$post"]
 >;
-
-type InventoryItem = InferResponseType<
-  (typeof client.api)["inventory-items"]["admin"]["$get"],
-  200
->["data"];
 
 export const useDeleteInventoryItems = () => {
   const queryClient = useQueryClient();
@@ -30,7 +25,7 @@ export const useDeleteInventoryItems = () => {
 
       return await res.json();
     },
-    onSuccess: (_data, ids) => {
+    onSuccess: (_data) => {
       toast.success("Itens deletados com sucesso!");
 
       // Invalida TODAS as queries que começam com ["inventory-items"]

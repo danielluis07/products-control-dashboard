@@ -417,7 +417,7 @@ const app = new Hono<{
       const authUser = c.get("user");
       const { ids } = c.req.valid("json");
 
-      if (!session || !authUser) {
+      if (!session || !authUser || authUser.role !== "admin") {
         return c.json({ message: "Usuário não autenticado" }, 401);
       }
 

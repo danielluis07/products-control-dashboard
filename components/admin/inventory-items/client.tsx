@@ -82,7 +82,7 @@ export const InventoryItemsClient = ({
         },
       });
     },
-    []
+    [mutate, closeConfirm, setPending]
   );
 
   const apiParams = useMemo(() => {
