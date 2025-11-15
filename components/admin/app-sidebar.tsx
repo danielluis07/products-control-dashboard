@@ -13,7 +13,14 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { FolderClosed, Home, ShoppingBasket, Store, Users } from "lucide-react";
+import {
+  FolderClosed,
+  Home,
+  Package,
+  ShoppingBasket,
+  Store,
+  Users,
+} from "lucide-react";
 import { NavUser } from "@/components/nav-user";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -45,6 +52,11 @@ const items = [
     title: "Produtos",
     url: "/dashboard/admin/products",
     icon: ShoppingBasket,
+  },
+  {
+    title: "Itens de Inventário",
+    url: "/dashboard/admin/inventory-items",
+    icon: Package,
   },
 ];
 
