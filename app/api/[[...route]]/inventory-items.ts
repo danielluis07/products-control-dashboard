@@ -6,10 +6,12 @@ import {
   inventoryItems,
   inventoryActivityLog,
   products,
+  stations,
+  categories,
   user,
 } from "@/db/schema";
 import type { AppVariables } from "@/app/api/[[...route]]/route";
-import { eq, and, asc, ne, ilike, sql, inArray } from "drizzle-orm";
+import { eq, and, asc, ne, ilike, sql, inArray, gte, lte } from "drizzle-orm";
 import { createInventoryItemSchema, logActivitySchema } from "@/schemas";
 
 const app = new Hono<{
@@ -106,7 +108,136 @@ const app = new Hono<{
       }
     }
   )
+  /**
+   * GET /
+   * Lista todos os itens de inventário para todos os postos (apenas ADMIN).
+   */
+  .get(
+    "/admin",
+    zValidator(
+      "query",
+      z.object({
+        search: z.string().optional(), // Busca por nome do produto
+        page: z.string().optional().default("1"),
+        limit: z.string().optional().default("20"),
+        stationIds: z.string().optional(), // Filtro por múltiplos postos (ex: "id1,id2,id3")
+        categoryId: z.string().optional(), // Filtro por uma categoria
+        status: z.string().optional(), // Filtro por status (ex: 'in_stock', 'expired')
+        expiryFrom: z.string().optional(), // Data (ISO 8601)
+        expiryTo: z.string().optional(), // Data (ISO 8601)
+      })
+    ),
+    async (c) => {
+      // 1. Autenticação e Autorização (Admin)
+      const authUser = c.get("user");
 
+      if (authUser?.role !== "admin") {
+        return c.json({ message: "Não autorizado" }, 401);
+      }
+
+      // 2. Validar Parâmetros de Query
+      const {
+        search,
+        page,
+        limit,
+        stationIds,
+        categoryId,
+        status,
+        expiryFrom,
+        expiryTo,
+      } = c.req.valid("query");
+
+      // 3. Paginação
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const offset = (pageNum - 1) * limitNum;
+
+      // 4. Construção Dinâmica dos Filtros (Where)
+      const whereConditions = [];
+
+      // Filtro padrão: não mostrar itens 'empty'
+      if (status) {
+        whereConditions.push(eq(inventoryItems.status, status));
+      } else {
+        whereConditions.push(ne(inventoryItems.status, "empty"));
+      }
+      if (search) {
+        whereConditions.push(ilike(products.name, `%${search}%`));
+      }
+      if (categoryId) {
+        whereConditions.push(eq(products.categoryId, categoryId));
+      }
+      if (stationIds) {
+        const ids = stationIds.split(",");
+        if (ids.length > 0) {
+          whereConditions.push(inArray(inventoryItems.stationId, ids));
+        }
+      }
+      if (expiryFrom) {
+        whereConditions.push(
+          gte(inventoryItems.expiryDate, new Date(expiryFrom))
+        );
+      }
+      if (expiryTo) {
+        whereConditions.push(
+          lte(inventoryItems.expiryDate, new Date(expiryTo))
+        );
+      }
+
+      try {
+        // 5. Query Principal (com todos os joins)
+        const data = await db
+          .select({
+            id: inventoryItems.id,
+            status: inventoryItems.status,
+            currentQuantity: inventoryItems.currentQuantity,
+            initialQuantity: inventoryItems.initialQuantity,
+            expiryDate: inventoryItems.expiryDate,
+            addedAt: inventoryItems.addedAt,
+            // --- Dados dos JOINS ---
+            productName: products.name,
+            productBarcode: products.barcode,
+            stationName: stations.name,
+            categoryName: categories.name,
+            addedBy: user.name,
+          })
+          .from(inventoryItems)
+          .leftJoin(products, eq(products.id, inventoryItems.productId))
+          .leftJoin(stations, eq(stations.id, inventoryItems.stationId))
+          .leftJoin(categories, eq(categories.id, products.categoryId))
+          .leftJoin(user, eq(user.id, inventoryItems.addedByUserId))
+          .where(and(...whereConditions))
+          .orderBy(asc(inventoryItems.expiryDate))
+          .limit(limitNum)
+          .offset(offset);
+
+        // 6. Query de Contagem (para paginação)
+        const [totalResult] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(inventoryItems)
+          .leftJoin(products, eq(products.id, inventoryItems.productId))
+          .leftJoin(categories, eq(categories.id, products.categoryId))
+          .where(and(...whereConditions));
+
+        const total = Number(totalResult.count);
+        const totalPages = Math.ceil(total / limitNum);
+
+        // 7. Retorno
+        return c.json({
+          data,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages,
+          },
+        });
+      } catch (error) {
+        console.error("Erro ao buscar inventário de admin:", error);
+        return c.json({ message: "Erro ao buscar inventário" }, 500);
+      }
+    }
+  )
   /**
    * GET /:id
    * Busca um item de inventário específico do posto do gerente,
