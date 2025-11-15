@@ -12,6 +12,9 @@ import { SelectTag } from "@/components/ui/select-tag";
 import { SelectFilters } from "@/components/admin/inventory-items/select-filter";
 import { CommandFilters } from "@/components/admin/inventory-items/command-filter";
 import { X } from "lucide-react";
+import { useDeleteInventoryItems } from "@/queries/inventory-items/use-delete-inventory-items";
+import { Row } from "@tanstack/react-table";
+import { useConfirm } from "@/providers/confirm-provider";
 
 const status = [
   {
@@ -34,6 +37,8 @@ export const InventoryItemsClient = ({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const { mutate } = useDeleteInventoryItems();
+  const { closeConfirm, setPending } = useConfirm();
 
   // Estados separados para page e limit
   const [page, setPage] = useState(1);
@@ -53,12 +58,32 @@ export const InventoryItemsClient = ({
     setPage(1);
   }, [debouncedSearchTerm, selectedStations, selectedCategory, selectedStatus]);
 
-  const onDeleteRows = useCallback((row: any) => {
-    console.log(
-      "Deletar:",
-      row.map((r: any) => r.original.id)
-    );
-  }, []);
+  const onDeleteRows = useCallback(
+    (
+      row: Row<{
+        id: string;
+        status: string;
+        currentQuantity: number;
+        initialQuantity: number;
+        expiryDate: string;
+        addedAt: string | null;
+        productName: string | null;
+        productBarcode: string | null;
+        stationName: string | null;
+        categoryName: string | null;
+        addedBy: string | null;
+      }>[]
+    ) => {
+      const ids = row.map((r) => r.original.id);
+      mutate(ids, {
+        onSettled: () => {
+          closeConfirm();
+          setPending(false);
+        },
+      });
+    },
+    []
+  );
 
   const apiParams = useMemo(() => {
     const stationIds =
