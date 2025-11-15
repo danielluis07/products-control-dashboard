@@ -11,6 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
   Row,
+  RowSelectionState,
 } from "@tanstack/react-table";
 
 import {
@@ -46,8 +47,8 @@ interface DataTableProps<TData, TValue> {
   >;
   sorting: SortingState;
   onSortingChange: React.Dispatch<React.SetStateAction<SortingState>>;
-  rowSelection: {};
-  onRowSelectionChange: React.Dispatch<React.SetStateAction<{}>>;
+  rowSelection: RowSelectionState;
+  onRowSelectionChange: React.Dispatch<React.SetStateAction<RowSelectionState>>;
 }
 
 export function DataTable<TData, TValue>({
