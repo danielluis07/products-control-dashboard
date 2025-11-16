@@ -6,6 +6,7 @@ import { categories, products } from "@/db/schema";
 import type { AppVariables } from "@/app/api/[[...route]]/route";
 import { and, eq, ilike, inArray, sql } from "drizzle-orm";
 import { createProductSchema, updateProductSchema } from "@/schemas";
+import { isForeignKeyError } from "@/types/errors";
 
 const app = new Hono<{
   Variables: AppVariables;
@@ -104,35 +105,81 @@ const app = new Hono<{
       }
     }
   )
-  .get("/dashboard", async (c) => {
-    const session = c.get("session");
+  .get(
+    "/admin",
+    zValidator(
+      "query",
+      z.object({
+        search: z.string().optional(),
+        page: z.string().optional().default("1"),
+        limit: z.string().optional().default("20"),
+      })
+    ),
+    async (c) => {
+      const session = c.get("session");
+      const authUser = c.get("user");
+      const { search, page, limit } = c.req.valid("query");
 
-    if (!session) {
-      return c.json({ message: "Não autorizado" }, 401);
+      if (!session || authUser?.role !== "admin") {
+        return c.json({ message: "Não autorizado" }, 401);
+      }
+
+      // 3. Paginação
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const offset = (pageNum - 1) * limitNum;
+
+      // 4. Construção Dinâmica dos Filtros (Where)
+      const whereConditions = [];
+
+      if (search) {
+        whereConditions.push(ilike(products.name, `%${search}%`));
+      }
+
+      try {
+        const data = await db
+          .select({
+            id: products.id,
+            name: products.name,
+            categoryId: products.categoryId,
+            categoryName: categories.name,
+            barcode: products.barcode,
+            notificationThresholdDays: products.notificationThresholdDays,
+            description: products.description,
+            imageUrl: products.imageUrl,
+          })
+          .from(products)
+          .leftJoin(categories, eq(categories.id, products.categoryId))
+          .where(and(...whereConditions))
+          .orderBy(products.name)
+          .limit(limitNum)
+          .offset(offset);
+
+        const [totalResult] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(products)
+          .leftJoin(categories, eq(categories.id, products.categoryId))
+          .where(and(...whereConditions));
+
+        const total = Number(totalResult.count);
+        const totalPages = Math.ceil(total / limitNum);
+
+        // 7. Retorno
+        return c.json({
+          data,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages,
+          },
+        });
+      } catch (error) {
+        console.error("Erro ao buscar produtos:", error);
+        return c.json({ message: "Erro ao buscar os produtos" }, 500);
+      }
     }
-
-    try {
-      const data = await db
-        .select({
-          id: products.id,
-          name: products.name,
-          categoryId: products.categoryId,
-          categoryName: categories.name,
-          barcode: products.barcode,
-          notificationThresholdDays: products.notificationThresholdDays,
-          description: products.description,
-          imageUrl: products.imageUrl,
-        })
-        .from(products)
-        .leftJoin(categories, eq(categories.id, products.categoryId))
-        .orderBy(products.name);
-
-      return c.json({ data });
-    } catch (error) {
-      console.error("Erro ao buscar produtos:", error);
-      return c.json({ message: "Erro ao buscar os produtos" }, 500);
-    }
-  })
+  )
   .get("/:id", async (c) => {
     const session = c.get("session");
     const { id } = c.req.param();
@@ -199,6 +246,23 @@ const app = new Hono<{
         return c.json({ data });
       } catch (error) {
         console.error("Erro ao deletar produtos:", error);
+
+        if (isForeignKeyError(error)) {
+          const { cause } = error;
+
+          return c.json(
+            {
+              message:
+                "Antes de deletar este produto, remova o lote associado a ele.",
+              details: {
+                table: cause.table,
+                constraint: cause.constraint,
+              },
+            },
+            409
+          );
+        }
+
         return c.json({ message: "Erro ao deletar produtos" }, 500);
       }
     }

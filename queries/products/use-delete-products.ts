@@ -7,11 +7,6 @@ type ResponseType = InferResponseType<
   (typeof client.api.products)["delete"]["$post"]
 >;
 
-type Product = InferResponseType<
-  (typeof client.api.products.dashboard)["$get"],
-  200
->["data"];
-
 export const useDeleteProducts = () => {
   const queryClient = useQueryClient();
 
@@ -32,18 +27,14 @@ export const useDeleteProducts = () => {
 
       return data;
     },
-    onSuccess: (_data, ids) => {
+    onSuccess: (_data) => {
       toast.success("Produtos deletados com sucesso!");
-      queryClient.setQueryData(["products"], (oldData: Product | undefined) => {
-        return oldData
-          ? oldData.filter((product) => !ids.includes(product.id))
-          : [];
-      });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+
+      queryClient.invalidateQueries({ queryKey: ["products"], exact: false });
     },
     onError: (error) => {
-      toast.error("Houve um erro ao deletar os produtos!");
-      console.error(error);
+      console.error("Erro ao deletar produtos:", error);
+      toast.error(error.message);
     },
   });
 

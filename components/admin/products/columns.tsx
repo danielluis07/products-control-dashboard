@@ -7,7 +7,7 @@ import { InferResponseType } from "hono";
 import { ProductsCellAction } from "@/components/admin/products/cell-action";
 
 export type Response = InferResponseType<
-  (typeof client.api.products.dashboard)["$get"],
+  (typeof client.api.products.admin)["$get"],
   200
 >["data"][0];
 
