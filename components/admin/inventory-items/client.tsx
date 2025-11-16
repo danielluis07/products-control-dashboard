@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { columns } from "@/components/admin/inventory-items/columns";
 import type { Response } from "@/components/admin/inventory-items/columns";
-import { DataTable } from "@/components/admin/inventory-items/data-table";
+import { DataTable } from "@/components/data-table/data-table";
 import { useGetInventoryItems } from "@/queries/inventory-items/use-get-inventory-items";
 import { useDebounce } from "@/hooks/use-debounce";
 import { ColumnFiltersState, SortingState } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { SelectTag } from "@/components/ui/select-tag";
-import { SelectFilters } from "@/components/admin/inventory-items/select-filter";
-import { CommandFilters } from "@/components/admin/inventory-items/command-filter";
+import { SelectFilters } from "@/components/data-table/select-filter";
+import { CommandFilters } from "@/components/data-table/command-filter";
 import { X } from "lucide-react";
 import { useDeleteInventoryItems } from "@/queries/inventory-items/use-delete-inventory-items";
 import { Row } from "@tanstack/react-table";
