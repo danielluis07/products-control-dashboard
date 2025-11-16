@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useConfirm } from "@/providers/confirm-provider";
 import { Trash2 } from "lucide-react";
-import { DataTablePagination } from "@/components/admin/inventory-items/data-table-pagination";
+import { DataTablePagination } from "@/components/data-table/pagination";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
