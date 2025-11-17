@@ -135,6 +135,13 @@ export const createInventoryItemSchema = z.object({
     .positive("A quantidade deve ser maior que zero"),
 });
 
+export const updateInventoryItemSchema = z.object({
+  action: z.enum(activityActionEnum.enumValues, {
+    message: "Ação inválida",
+  }),
+  quantity: z.number(),
+});
+
 export const logActivitySchema = z.object({
   action: z.enum(activityActionEnum.enumValues, {
     message: "Ação inválida",

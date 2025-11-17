@@ -158,8 +158,6 @@ const app = new Hono<{
       // Filtro padrão: não mostrar itens 'empty'
       if (status) {
         whereConditions.push(eq(inventoryItems.status, status));
-      } else {
-        whereConditions.push(ne(inventoryItems.status, "empty"));
       }
       if (search) {
         whereConditions.push(ilike(products.name, `%${search}%`));
@@ -538,6 +536,95 @@ const app = new Hono<{
 
       return c.json({ message: "Erro ao registrar atividade" }, 500);
     }
-  });
+  })
+  .post(
+    "/:id/activity/admin",
+    zValidator("json", logActivitySchema),
+    async (c) => {
+      const session = c.get("session");
+      const authUser = c.get("user");
+      const inventoryItemId = c.req.param("id");
+      const { action, quantity } = c.req.valid("json");
+
+      if (!session || authUser?.role !== "admin") {
+        return c.json({ message: "Usuário não autenticado" }, 401);
+      }
+
+      try {
+        const updatedItem = await db.transaction(async (tx) => {
+          // 1. Pega o item atual e trava a linha
+          const [item] = await tx
+            .select({
+              currentQuantity: inventoryItems.currentQuantity,
+            })
+            .from(inventoryItems)
+            .where(and(eq(inventoryItems.id, inventoryItemId)))
+            .for("update");
+
+          // 2. Verifica se o item existe - LANÇA ERRO para fazer rollback
+          if (!item) {
+            throw new Error("ITEM_NOT_FOUND");
+          }
+
+          // 3. Verifica se tem estoque suficiente - LANÇA ERRO para fazer rollback
+          if (item.currentQuantity < quantity) {
+            throw new Error(`INSUFFICIENT_STOCK:${item.currentQuantity}`);
+          }
+
+          // 4. Registra o log de atividade
+          await tx.insert(inventoryActivityLog).values({
+            inventoryItemId: inventoryItemId,
+            userId: authUser.id,
+            action: action,
+            quantityChange: -Math.abs(quantity),
+          });
+
+          // 5. Atualiza a quantidade do lote
+          const newQuantity = item.currentQuantity - quantity;
+          const newStatus = newQuantity === 0 ? "empty" : "in_stock";
+
+          const [updatedItem] = await tx
+            .update(inventoryItems)
+            .set({
+              currentQuantity: newQuantity,
+              status: newStatus,
+            })
+            .where(eq(inventoryItems.id, inventoryItemId))
+            .returning();
+
+          return updatedItem; // Retorna apenas o dado em caso de sucesso
+        });
+
+        return c.json({ data: updatedItem });
+      } catch (error) {
+        console.error("Erro ao registrar atividade:", error);
+
+        // Tratamento específico dos erros de negócio
+        if (error instanceof Error) {
+          if (error.message === "ITEM_NOT_FOUND") {
+            return c.json(
+              {
+                message:
+                  "Item de inventário não encontrado ou não pertence a este posto",
+              },
+              404
+            );
+          }
+
+          if (error.message.startsWith("INSUFFICIENT_STOCK:")) {
+            const currentQty = error.message.split(":")[1];
+            return c.json(
+              {
+                message: `Quantidade insuficiente em estoque. (Atual: ${currentQty})`,
+              },
+              400
+            );
+          }
+        }
+
+        return c.json({ message: "Erro ao registrar atividade" }, 500);
+      }
+    }
+  );
 
 export default app;
