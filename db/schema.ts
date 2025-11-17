@@ -18,6 +18,7 @@ export const activityActionEnum = pgEnum("activity_action", [
   "sold", // Item foi vendido
   "removed_expired", // Item removido por vencimento
   "removed_manual", // Item removido manualmente (dano, perda, etc.)
+  "restock", // Item adicionado ao estoque
 ]);
 
 // --- TABELAS DE AUTENTICAÇÃO E USUÁRIO ---
