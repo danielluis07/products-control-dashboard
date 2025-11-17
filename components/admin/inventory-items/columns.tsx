@@ -129,9 +129,9 @@ export const columns: ColumnDef<Response>[] = [
     accessorKey: "actions",
     header: "Ações",
     cell: ({ row }) => {
-      const { id, initialQuantity } = row.original;
+      const { id } = row.original;
 
-      return <InventoryItemsCellAction id={id} quantity={initialQuantity} />;
+      return <InventoryItemsCellAction id={id} />;
     },
   },
 ];

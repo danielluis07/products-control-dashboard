@@ -453,16 +453,20 @@ const app = new Hono<{
     const inventoryItemId = c.req.param("id");
     const { action, quantity } = c.req.valid("json");
 
+    // 1. Autenticação (Apenas Admin pode mexer no estoque manualmente)
     if (!session || !authUser) {
-      return c.json({ message: "Usuário não autenticado" }, 401);
+      return c.json({ message: "Não autorizado" }, 401);
     }
 
     try {
       const updatedItem = await db.transaction(async (tx) => {
-        // 1. Pega o item atual e trava a linha
+        // ---------------------------------------------------------
+        // PASSO 1: Buscar o Item com TRAVA DE BANCO (Row Locking)
+        // ---------------------------------------------------------
         const [item] = await tx
           .select({
             currentQuantity: inventoryItems.currentQuantity,
+            status: inventoryItems.status, // Necessário para a lógica de status
           })
           .from(inventoryItems)
           .where(
@@ -471,30 +475,64 @@ const app = new Hono<{
               eq(inventoryItems.stationId, authUser.stationId!)
             )
           )
-          .for("update");
+          .for("update"); // <--- CRUCIAL: Impede condição de corrida
 
-        // 2. Verifica se o item existe - LANÇA ERRO para fazer rollback
         if (!item) {
           throw new Error("ITEM_NOT_FOUND");
         }
 
-        // 3. Verifica se tem estoque suficiente - LANÇA ERRO para fazer rollback
-        if (item.currentQuantity < quantity) {
+        // ---------------------------------------------------------
+        // PASSO 2: Definir Matemática (Soma ou Subtração?)
+        // ---------------------------------------------------------
+        // Se a ação for 'restock', é uma entrada (+). O resto é saída (-).
+        const isAddition = action === "restock";
+
+        // Define o valor real para o banco (ex: 10 ou -10)
+        const quantityChange = isAddition
+          ? Math.abs(quantity)
+          : -Math.abs(quantity);
+
+        // ---------------------------------------------------------
+        // PASSO 3: Validação de Estoque Negativo
+        // ---------------------------------------------------------
+        // Só validamos saldo se for uma SAÍDA.
+        // (Adicionar estoque nunca gera erro de saldo insuficiente)
+        if (!isAddition && item.currentQuantity < Math.abs(quantityChange)) {
           throw new Error(`INSUFFICIENT_STOCK:${item.currentQuantity}`);
         }
 
-        // 4. Registra o log de atividade
+        // ---------------------------------------------------------
+        // PASSO 4: Registrar Log de Auditoria
+        // ---------------------------------------------------------
         await tx.insert(inventoryActivityLog).values({
           inventoryItemId: inventoryItemId,
           userId: authUser.id,
           action: action,
-          quantityChange: -Math.abs(quantity),
+          quantityChange: quantityChange, // Grava +10 ou -10
+          timestamp: new Date(),
         });
 
-        // 5. Atualiza a quantidade do lote
-        const newQuantity = item.currentQuantity - quantity;
-        const newStatus = newQuantity === 0 ? "empty" : "in_stock";
+        // ---------------------------------------------------------
+        // PASSO 5: Calcular Novo Estado
+        // ---------------------------------------------------------
+        const newQuantity = item.currentQuantity + quantityChange;
 
+        // Lógica inteligente de Status:
+        let newStatus = item.status; // Padrão: mantém o status atual (ex: 'expired' continua 'expired')
+
+        if (newQuantity === 0) {
+          // Se zerou, vira 'empty' independente do que era antes
+          newStatus = "empty";
+        } else if (item.status === "empty" && newQuantity > 0) {
+          // Se estava vazio e encheu, vira 'in_stock'
+          newStatus = "in_stock";
+        }
+        // Nota: Se o status era 'expired' e adicionamos itens, ele CONTINUA 'expired'.
+        // Isso é correto: misturar produto novo com vencido contamina o lote.
+
+        // ---------------------------------------------------------
+        // PASSO 6: Atualizar Item
+        // ---------------------------------------------------------
         const [updatedItem] = await tx
           .update(inventoryItems)
           .set({
@@ -504,37 +542,30 @@ const app = new Hono<{
           .where(eq(inventoryItems.id, inventoryItemId))
           .returning();
 
-        return updatedItem; // Retorna apenas o dado em caso de sucesso
+        return updatedItem;
       });
 
       return c.json({ data: updatedItem });
     } catch (error) {
-      console.error("Erro ao registrar atividade:", error);
+      console.error("Erro na transação de inventário:", error);
 
-      // Tratamento específico dos erros de negócio
+      // Tratamento de Erros de Negócio
       if (error instanceof Error) {
         if (error.message === "ITEM_NOT_FOUND") {
-          return c.json(
-            {
-              message:
-                "Item de inventário não encontrado ou não pertence a este posto",
-            },
-            404
-          );
+          return c.json({ message: "Item não encontrado." }, 404);
         }
-
-        if (error.message.startsWith("INSUFFICIENT_STOCK:")) {
-          const currentQty = error.message.split(":")[1];
+        if (error.message.startsWith("INSUFFICIENT_STOCK")) {
+          const current = error.message.split(":")[1];
           return c.json(
             {
-              message: `Quantidade insuficiente em estoque. (Atual: ${currentQty})`,
+              message: `Estoque insuficiente para realizar a baixa. Atual: ${current}`,
             },
             400
           );
         }
       }
 
-      return c.json({ message: "Erro ao registrar atividade" }, 500);
+      return c.json({ message: "Erro interno ao processar estoque." }, 500);
     }
   })
   .post(
@@ -546,43 +577,81 @@ const app = new Hono<{
       const inventoryItemId = c.req.param("id");
       const { action, quantity } = c.req.valid("json");
 
+      // 1. Autenticação (Apenas Admin pode mexer no estoque manualmente)
       if (!session || authUser?.role !== "admin") {
-        return c.json({ message: "Usuário não autenticado" }, 401);
+        return c.json({ message: "Não autorizado" }, 401);
       }
 
       try {
         const updatedItem = await db.transaction(async (tx) => {
-          // 1. Pega o item atual e trava a linha
+          // ---------------------------------------------------------
+          // PASSO 1: Buscar o Item com TRAVA DE BANCO (Row Locking)
+          // ---------------------------------------------------------
           const [item] = await tx
             .select({
               currentQuantity: inventoryItems.currentQuantity,
+              status: inventoryItems.status, // Necessário para a lógica de status
             })
             .from(inventoryItems)
-            .where(and(eq(inventoryItems.id, inventoryItemId)))
-            .for("update");
+            .where(eq(inventoryItems.id, inventoryItemId))
+            .for("update"); // <--- CRUCIAL: Impede condição de corrida
 
-          // 2. Verifica se o item existe - LANÇA ERRO para fazer rollback
           if (!item) {
             throw new Error("ITEM_NOT_FOUND");
           }
 
-          // 3. Verifica se tem estoque suficiente - LANÇA ERRO para fazer rollback
-          if (item.currentQuantity < quantity) {
+          // ---------------------------------------------------------
+          // PASSO 2: Definir Matemática (Soma ou Subtração?)
+          // ---------------------------------------------------------
+          // Se a ação for 'restock', é uma entrada (+). O resto é saída (-).
+          const isAddition = action === "restock";
+
+          // Define o valor real para o banco (ex: 10 ou -10)
+          const quantityChange = isAddition
+            ? Math.abs(quantity)
+            : -Math.abs(quantity);
+
+          // ---------------------------------------------------------
+          // PASSO 3: Validação de Estoque Negativo
+          // ---------------------------------------------------------
+          // Só validamos saldo se for uma SAÍDA.
+          // (Adicionar estoque nunca gera erro de saldo insuficiente)
+          if (!isAddition && item.currentQuantity < Math.abs(quantityChange)) {
             throw new Error(`INSUFFICIENT_STOCK:${item.currentQuantity}`);
           }
 
-          // 4. Registra o log de atividade
+          // ---------------------------------------------------------
+          // PASSO 4: Registrar Log de Auditoria
+          // ---------------------------------------------------------
           await tx.insert(inventoryActivityLog).values({
             inventoryItemId: inventoryItemId,
             userId: authUser.id,
             action: action,
-            quantityChange: -Math.abs(quantity),
+            quantityChange: quantityChange, // Grava +10 ou -10
+            timestamp: new Date(),
           });
 
-          // 5. Atualiza a quantidade do lote
-          const newQuantity = item.currentQuantity - quantity;
-          const newStatus = newQuantity === 0 ? "empty" : "in_stock";
+          // ---------------------------------------------------------
+          // PASSO 5: Calcular Novo Estado
+          // ---------------------------------------------------------
+          const newQuantity = item.currentQuantity + quantityChange;
 
+          // Lógica inteligente de Status:
+          let newStatus = item.status; // Padrão: mantém o status atual (ex: 'expired' continua 'expired')
+
+          if (newQuantity === 0) {
+            // Se zerou, vira 'empty' independente do que era antes
+            newStatus = "empty";
+          } else if (item.status === "empty" && newQuantity > 0) {
+            // Se estava vazio e encheu, vira 'in_stock'
+            newStatus = "in_stock";
+          }
+          // Nota: Se o status era 'expired' e adicionamos itens, ele CONTINUA 'expired'.
+          // Isso é correto: misturar produto novo com vencido contamina o lote.
+
+          // ---------------------------------------------------------
+          // PASSO 6: Atualizar Item
+          // ---------------------------------------------------------
           const [updatedItem] = await tx
             .update(inventoryItems)
             .set({
@@ -592,37 +661,30 @@ const app = new Hono<{
             .where(eq(inventoryItems.id, inventoryItemId))
             .returning();
 
-          return updatedItem; // Retorna apenas o dado em caso de sucesso
+          return updatedItem;
         });
 
         return c.json({ data: updatedItem });
       } catch (error) {
-        console.error("Erro ao registrar atividade:", error);
+        console.error("Erro na transação de inventário:", error);
 
-        // Tratamento específico dos erros de negócio
+        // Tratamento de Erros de Negócio
         if (error instanceof Error) {
           if (error.message === "ITEM_NOT_FOUND") {
-            return c.json(
-              {
-                message:
-                  "Item de inventário não encontrado ou não pertence a este posto",
-              },
-              404
-            );
+            return c.json({ message: "Item não encontrado." }, 404);
           }
-
-          if (error.message.startsWith("INSUFFICIENT_STOCK:")) {
-            const currentQty = error.message.split(":")[1];
+          if (error.message.startsWith("INSUFFICIENT_STOCK")) {
+            const current = error.message.split(":")[1];
             return c.json(
               {
-                message: `Quantidade insuficiente em estoque. (Atual: ${currentQty})`,
+                message: `Estoque insuficiente para realizar a baixa. Atual: ${current}`,
               },
               400
             );
           }
         }
 
-        return c.json({ message: "Erro ao registrar atividade" }, 500);
+        return c.json({ message: "Erro interno ao processar estoque." }, 500);
       }
     }
   );

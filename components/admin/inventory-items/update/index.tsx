@@ -33,20 +33,20 @@ import { useUpdateInventoryItem } from "@/queries/inventory-items/use-update-inv
 
 type FormData = z.infer<typeof updateInventoryItemSchema>;
 
+// ATUALIZAÇÃO 1: Adicionada a opção de Restock
 const actions = [
-  { label: "Vendido", value: "sold" },
-  { label: "Remoção Manual", value: "removed_manual" },
-  { label: "Produto Vencido", value: "removed_expired" },
+  { label: "Vendido (-)", value: "sold" },
+  { label: "Remoção Manual (-)", value: "removed_manual" },
+  { label: "Produto Vencido (-)", value: "removed_expired" },
+  { label: "Reabastecimento / Correção (+)", value: "restock" }, // Nova opção
 ];
 
 export const UpdateInventoryItem = ({
   id,
-  quantity,
   open,
   setOpen,
 }: {
   id: string;
-  quantity: number;
   open: boolean;
   setOpen: (open: boolean) => void;
 }) => {
@@ -55,8 +55,8 @@ export const UpdateInventoryItem = ({
 
   const form = useForm({
     defaultValues: {
-      action: "removed_manual",
-      quantity,
+      action: "removed_manual", // Padrão seguro
+      quantity: 0, // Começa zerado para forçar o usuário a digitar o ajuste
     } satisfies FormData as FormData,
     validators: {
       onSubmit: updateInventoryItemSchema,
@@ -64,7 +64,7 @@ export const UpdateInventoryItem = ({
     onSubmit: async ({ value }) => {
       mutate(value, {
         onSuccess: () => {
-          toast.success("Item atualizado!");
+          toast.success("Estoque atualizado com sucesso!");
           queryClient.invalidateQueries({
             queryKey: ["inventory-items"],
             exact: false,
@@ -79,53 +79,22 @@ export const UpdateInventoryItem = ({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar Lote</DialogTitle>
+          <DialogTitle>Ajuste de Estoque</DialogTitle>
           <DialogDescription>
-            Insira os detalhes do lote que deseja editar.
+            Selecione o tipo de movimentação e a quantidade.
           </DialogDescription>
         </DialogHeader>
         <form
           id="update-inventory-item-form"
           onSubmit={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             form.handleSubmit();
           }}>
           <FieldGroup>
-            <form.Field
-              name="quantity"
-              children={(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
-
-                return (
-                  <Field data-invalid={isInvalid}>
-                    <FieldLabel htmlFor={field.name}>Quantidade</FieldLabel>
-                    <FieldDescription>
-                      Insira a quantidade de itens que deseja remover
-                    </FieldDescription>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => {
-                        const onlyNumbers = e.target.value.replace(/\D+/g, "");
-                        field.handleChange(Number(onlyNumbers));
-                      }}
-                      aria-invalid={isInvalid}
-                      disabled={isPending}
-                      required
-                    />
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            />
+            {/* ATUALIZAÇÃO 2: Inverti a ordem. 
+              É melhor selecionar a AÇÃO primeiro para entender o contexto da quantidade.
+            */}
             <form.Field
               name="action"
               children={(field) => {
@@ -134,10 +103,9 @@ export const UpdateInventoryItem = ({
                 return (
                   <Field data-invalid={isInvalid}>
                     <FieldContent>
-                      <FieldLabel htmlFor="select-action">Ação</FieldLabel>
-                      <FieldDescription>
-                        Selecione o motivo da alteração de quantidade
-                      </FieldDescription>
+                      <FieldLabel htmlFor="select-action">
+                        Tipo de Movimentação
+                      </FieldLabel>
                       {isInvalid && (
                         <FieldError errors={field.state.meta.errors} />
                       )}
@@ -152,7 +120,7 @@ export const UpdateInventoryItem = ({
                       <SelectTrigger
                         id="select-action"
                         aria-invalid={isInvalid}>
-                        <SelectValue placeholder="Selecione" />
+                        <SelectValue placeholder="Selecione o motivo" />
                       </SelectTrigger>
                       <SelectContent position="item-aligned">
                         {actions.map((action, i) => (
@@ -166,8 +134,61 @@ export const UpdateInventoryItem = ({
                 );
               }}
             />
+
+            <form.Field
+              name="quantity"
+              children={(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>Quantidade</FieldLabel>
+
+                    {/* form.Subscribe para atualizar o texto dinamicamente */}
+                    <FieldDescription>
+                      <form.Subscribe
+                        selector={(state) => state.values.action}
+                        children={(action) => (
+                          <span>
+                            {action === "restock"
+                              ? "Quantos itens você quer ADICIONAR ao lote?"
+                              : "Quantos itens você quer REMOVER do lote?"}
+                          </span>
+                        )}
+                      />
+                    </FieldDescription>
+
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Ex: 5"
+                      value={field.state.value === 0 ? "" : field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => {
+                        const onlyNumbers = e.target.value.replace(/\D+/g, "");
+                        field.handleChange(Number(onlyNumbers));
+                      }}
+                      aria-invalid={isInvalid}
+                      disabled={isPending}
+                      required
+                      autoFocus
+                    />
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            />
+
             <Field>
-              <Button disabled={isPending}>Salvar</Button>
+              <Button disabled={isPending} type="submit" className="w-full">
+                {isPending ? "Atualizando..." : "Confirmar Ajuste"}
+              </Button>
             </Field>
           </FieldGroup>
         </form>

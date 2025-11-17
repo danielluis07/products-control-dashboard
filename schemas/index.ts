@@ -139,7 +139,8 @@ export const updateInventoryItemSchema = z.object({
   action: z.enum(activityActionEnum.enumValues, {
     message: "Ação inválida",
   }),
-  quantity: z.number(),
+  // Quantidade que está sendo REMOVIDA
+  quantity: z.number().int().positive("A quantidade deve ser maior que zero"),
 });
 
 export const logActivitySchema = z.object({

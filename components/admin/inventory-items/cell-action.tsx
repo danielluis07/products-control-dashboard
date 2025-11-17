@@ -11,23 +11,12 @@ import { MoreHorizontal, Edit } from "lucide-react";
 import { useState } from "react";
 import { UpdateInventoryItem } from "@/components/admin/inventory-items/update";
 
-export const InventoryItemsCellAction = ({
-  id,
-  quantity,
-}: {
-  id: string;
-  quantity: number;
-}) => {
+export const InventoryItemsCellAction = ({ id }: { id: string }) => {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <UpdateInventoryItem
-        id={id}
-        quantity={quantity}
-        open={open}
-        setOpen={setOpen}
-      />
+      <UpdateInventoryItem id={id} open={open} setOpen={setOpen} />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">
