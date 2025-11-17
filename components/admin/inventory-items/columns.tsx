@@ -7,6 +7,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { InferResponseType } from "hono";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { InventoryItemsCellAction } from "@/components/admin/inventory-items/cell-action";
 
 export type Response = InferResponseType<
   (typeof client.api)["inventory-items"]["admin"]["$get"],
@@ -123,5 +124,14 @@ export const columns: ColumnDef<Response>[] = [
   {
     accessorKey: "addedBy",
     header: "Adicionado Por",
+  },
+  {
+    accessorKey: "actions",
+    header: "Ações",
+    cell: ({ row }) => {
+      const { id } = row.original;
+
+      return <InventoryItemsCellAction id={id} />;
+    },
   },
 ];
