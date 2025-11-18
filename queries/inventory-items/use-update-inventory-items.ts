@@ -4,18 +4,18 @@ import { client } from "@/lib/hono";
 import { toast } from "sonner";
 
 type ResponseType = InferResponseType<
-  (typeof client.api)["inventory-items"][":id"]["activity"]["admin"]["$post"]
+  (typeof client.api)["inventory-items"][":id"]["activity"]["$post"]
 >;
 type RequestType = InferRequestType<
-  (typeof client.api)["inventory-items"][":id"]["activity"]["admin"]["$post"]
+  (typeof client.api)["inventory-items"][":id"]["activity"]["$post"]
 >["json"];
 
 export const useUpdateInventoryItem = (id: string) => {
   const mutation = useMutation<ResponseType, Error, RequestType>({
     mutationFn: async (json) => {
       const res = await client.api["inventory-items"][":id"]["activity"][
-        "admin"
-      ]["$post"]({
+        "$post"
+      ]({
         param: { id },
         json,
       });

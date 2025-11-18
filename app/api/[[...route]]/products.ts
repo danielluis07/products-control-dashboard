@@ -62,30 +62,32 @@ const app = new Hono<{
       }
 
       try {
-        const data = await db
-          .select({
-            id: products.id,
-            name: products.name,
-            categoryId: products.categoryId,
-            categoryName: categories.name,
-            barcode: products.barcode,
-            notificationThresholdDays: products.notificationThresholdDays,
-            description: products.description,
-            imageUrl: products.imageUrl,
-          })
-          .from(products)
-          .leftJoin(categories, eq(categories.id, products.categoryId))
-          .where(and(...whereConditions))
-          .orderBy(products.name)
-          .limit(limitNum)
-          .offset(offset);
+        const [data, totalResult] = await Promise.all([
+          db
+            .select({
+              id: products.id,
+              name: products.name,
+              categoryId: products.categoryId,
+              categoryName: categories.name,
+              barcode: products.barcode,
+              notificationThresholdDays: products.notificationThresholdDays,
+              description: products.description,
+              imageUrl: products.imageUrl,
+            })
+            .from(products)
+            .leftJoin(categories, eq(categories.id, products.categoryId))
+            .where(and(...whereConditions))
+            .orderBy(products.name)
+            .limit(limitNum)
+            .offset(offset),
 
-        // Conta o total de itens (para saber se há mais páginas)
-        const [totalResult] = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(products)
-          .leftJoin(categories, eq(categories.id, products.categoryId))
-          .where(and(...whereConditions));
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(products)
+            .leftJoin(categories, eq(categories.id, products.categoryId))
+            .where(and(...whereConditions))
+            .then((res) => res[0]),
+        ]);
 
         const total = Number(totalResult.count);
         const hasMore = offset + data.length < total;
@@ -137,34 +139,35 @@ const app = new Hono<{
       }
 
       try {
-        const data = await db
-          .select({
-            id: products.id,
-            name: products.name,
-            categoryId: products.categoryId,
-            categoryName: categories.name,
-            barcode: products.barcode,
-            notificationThresholdDays: products.notificationThresholdDays,
-            description: products.description,
-            imageUrl: products.imageUrl,
-          })
-          .from(products)
-          .leftJoin(categories, eq(categories.id, products.categoryId))
-          .where(and(...whereConditions))
-          .orderBy(products.name)
-          .limit(limitNum)
-          .offset(offset);
+        const [data, totalResult] = await Promise.all([
+          db
+            .select({
+              id: products.id,
+              name: products.name,
+              categoryId: products.categoryId,
+              categoryName: categories.name,
+              barcode: products.barcode,
+              notificationThresholdDays: products.notificationThresholdDays,
+              description: products.description,
+              imageUrl: products.imageUrl,
+            })
+            .from(products)
+            .leftJoin(categories, eq(categories.id, products.categoryId))
+            .where(and(...whereConditions))
+            .orderBy(products.name)
+            .limit(limitNum)
+            .offset(offset),
 
-        const [totalResult] = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(products)
-          .leftJoin(categories, eq(categories.id, products.categoryId))
-          .where(and(...whereConditions));
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(products)
+            .leftJoin(categories, eq(categories.id, products.categoryId))
+            .where(and(...whereConditions)),
+        ]);
 
-        const total = Number(totalResult.count);
+        const total = Number(totalResult[0].count);
         const totalPages = Math.ceil(total / limitNum);
 
-        // 7. Retorno
         return c.json({
           data,
           pagination: {

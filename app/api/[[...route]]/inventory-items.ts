@@ -61,34 +61,35 @@ const app = new Hono<{
       }
 
       try {
-        // Busca os dados paginados
-        const data = await db
-          .select({
-            id: inventoryItems.id,
-            productId: inventoryItems.productId,
-            stationId: inventoryItems.stationId,
-            expiryDate: inventoryItems.expiryDate,
-            initialQuantity: inventoryItems.initialQuantity,
-            currentQuantity: inventoryItems.currentQuantity,
-            addedAt: inventoryItems.addedAt,
-            status: inventoryItems.status,
-            productName: products.name,
-            productBarcode: products.barcode,
-            productImageUrl: products.imageUrl,
-          })
-          .from(inventoryItems)
-          .leftJoin(products, eq(products.id, inventoryItems.productId))
-          .where(and(...whereConditions))
-          .orderBy(asc(inventoryItems.expiryDate))
-          .limit(limitNum)
-          .offset(offset);
+        const [data, totalResult] = await Promise.all([
+          db
+            .select({
+              id: inventoryItems.id,
+              productId: inventoryItems.productId,
+              stationId: inventoryItems.stationId,
+              expiryDate: inventoryItems.expiryDate,
+              initialQuantity: inventoryItems.initialQuantity,
+              currentQuantity: inventoryItems.currentQuantity,
+              addedAt: inventoryItems.addedAt,
+              status: inventoryItems.status,
+              productName: products.name,
+              productBarcode: products.barcode,
+              productImageUrl: products.imageUrl,
+            })
+            .from(inventoryItems)
+            .leftJoin(products, eq(products.id, inventoryItems.productId))
+            .where(and(...whereConditions))
+            .orderBy(asc(inventoryItems.expiryDate))
+            .limit(limitNum)
+            .offset(offset),
 
-        // Conta o total de itens (para saber se há mais páginas)
-        const [totalResult] = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(inventoryItems)
-          .leftJoin(products, eq(products.id, inventoryItems.productId))
-          .where(and(...whereConditions));
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(inventoryItems)
+            .leftJoin(products, eq(products.id, inventoryItems.productId))
+            .where(and(...whereConditions))
+            .then((res) => res[0]),
+        ]);
 
         const total = Number(totalResult.count);
         const hasMore = offset + data.length < total;
@@ -183,44 +184,43 @@ const app = new Hono<{
       }
 
       try {
-        // 5. Query Principal (com todos os joins)
-        const data = await db
-          .select({
-            id: inventoryItems.id,
-            status: inventoryItems.status,
-            currentQuantity: inventoryItems.currentQuantity,
-            initialQuantity: inventoryItems.initialQuantity,
-            expiryDate: inventoryItems.expiryDate,
-            addedAt: inventoryItems.addedAt,
-            // --- Dados dos JOINS ---
-            productName: products.name,
-            productBarcode: products.barcode,
-            stationName: stations.name,
-            categoryName: categories.name,
-            addedBy: user.name,
-          })
-          .from(inventoryItems)
-          .leftJoin(products, eq(products.id, inventoryItems.productId))
-          .leftJoin(stations, eq(stations.id, inventoryItems.stationId))
-          .leftJoin(categories, eq(categories.id, products.categoryId))
-          .leftJoin(user, eq(user.id, inventoryItems.addedByUserId))
-          .where(and(...whereConditions))
-          .orderBy(asc(inventoryItems.expiryDate))
-          .limit(limitNum)
-          .offset(offset);
+        const [data, totalResult] = await Promise.all([
+          db
+            .select({
+              id: inventoryItems.id,
+              status: inventoryItems.status,
+              currentQuantity: inventoryItems.currentQuantity,
+              initialQuantity: inventoryItems.initialQuantity,
+              expiryDate: inventoryItems.expiryDate,
+              addedAt: inventoryItems.addedAt,
+              productName: products.name,
+              productBarcode: products.barcode,
+              stationName: stations.name,
+              categoryName: categories.name,
+              addedBy: user.name,
+            })
+            .from(inventoryItems)
+            .leftJoin(products, eq(products.id, inventoryItems.productId))
+            .leftJoin(stations, eq(stations.id, inventoryItems.stationId))
+            .leftJoin(categories, eq(categories.id, products.categoryId))
+            .leftJoin(user, eq(user.id, inventoryItems.addedByUserId))
+            .where(and(...whereConditions))
+            .orderBy(asc(inventoryItems.expiryDate))
+            .limit(limitNum)
+            .offset(offset),
 
-        // 6. Query de Contagem (para paginação)
-        const [totalResult] = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(inventoryItems)
-          .leftJoin(products, eq(products.id, inventoryItems.productId))
-          .leftJoin(categories, eq(categories.id, products.categoryId))
-          .where(and(...whereConditions));
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(inventoryItems)
+            .leftJoin(products, eq(products.id, inventoryItems.productId))
+            .leftJoin(categories, eq(categories.id, products.categoryId))
+            .where(and(...whereConditions))
+            .then((res) => res[0]),
+        ]);
 
         const total = Number(totalResult.count);
         const totalPages = Math.ceil(total / limitNum);
 
-        // 7. Retorno
         return c.json({
           data,
           pagination: {
@@ -273,25 +273,28 @@ const app = new Hono<{
         return c.json({ message: "Item de inventário não encontrado" }, 404);
       }
 
-      // 2. Busca o produto associado (do catálogo)
-      const [productData] = await db
-        .select()
-        .from(products)
-        .where(eq(products.id, item.productId));
+      // 2. Busca os dados de suporte EM PARALELO
+      const [productDataResult, logsDataResult] = await Promise.all([
+        // Query 1: Busca o produto
+        db.select().from(products).where(eq(products.id, item.productId)),
 
-      // 3. Busca os logs de atividade, fazendo join com o usuário que realizou a ação
-      const logsData = await db
-        .select({
-          id: inventoryActivityLog.id,
-          action: inventoryActivityLog.action,
-          quantityChange: inventoryActivityLog.quantityChange,
-          timestamp: inventoryActivityLog.timestamp,
-          userName: user.name, // Nome do usuário que fez o log
-        })
-        .from(inventoryActivityLog)
-        .leftJoin(user, eq(user.id, inventoryActivityLog.userId))
-        .where(eq(inventoryActivityLog.inventoryItemId, id))
-        .orderBy(asc(inventoryActivityLog.timestamp));
+        // Query 2: Busca os logs
+        db
+          .select({
+            id: inventoryActivityLog.id,
+            action: inventoryActivityLog.action,
+            quantityChange: inventoryActivityLog.quantityChange,
+            timestamp: inventoryActivityLog.timestamp,
+            userName: user.name,
+          })
+          .from(inventoryActivityLog)
+          .leftJoin(user, eq(user.id, inventoryActivityLog.userId))
+          .where(eq(inventoryActivityLog.inventoryItemId, id))
+          .orderBy(asc(inventoryActivityLog.timestamp)),
+      ]);
+
+      const [productData] = productDataResult;
+      const logsData = logsDataResult;
 
       // 4. Combina tudo em um único objeto de resposta
       const data = {
@@ -453,9 +456,13 @@ const app = new Hono<{
     const inventoryItemId = c.req.param("id");
     const { action, quantity } = c.req.valid("json");
 
-    // 1. Autenticação (Apenas Admin pode mexer no estoque manualmente)
     if (!session || !authUser) {
       return c.json({ message: "Não autorizado" }, 401);
+    }
+    const whereConditions = [eq(inventoryItems.id, inventoryItemId)];
+
+    if (authUser.role !== "admin") {
+      whereConditions.push(eq(inventoryItems.stationId, authUser.stationId!));
     }
 
     try {
@@ -469,12 +476,7 @@ const app = new Hono<{
             status: inventoryItems.status, // Necessário para a lógica de status
           })
           .from(inventoryItems)
-          .where(
-            and(
-              eq(inventoryItems.id, inventoryItemId),
-              eq(inventoryItems.stationId, authUser.stationId!)
-            )
-          )
+          .where(and(...whereConditions))
           .for("update"); // <--- CRUCIAL: Impede condição de corrida
 
         if (!item) {
@@ -567,126 +569,6 @@ const app = new Hono<{
 
       return c.json({ message: "Erro interno ao processar estoque." }, 500);
     }
-  })
-  .post(
-    "/:id/activity/admin",
-    zValidator("json", logActivitySchema),
-    async (c) => {
-      const session = c.get("session");
-      const authUser = c.get("user");
-      const inventoryItemId = c.req.param("id");
-      const { action, quantity } = c.req.valid("json");
-
-      // 1. Autenticação (Apenas Admin pode mexer no estoque manualmente)
-      if (!session || authUser?.role !== "admin") {
-        return c.json({ message: "Não autorizado" }, 401);
-      }
-
-      try {
-        const updatedItem = await db.transaction(async (tx) => {
-          // ---------------------------------------------------------
-          // PASSO 1: Buscar o Item com TRAVA DE BANCO (Row Locking)
-          // ---------------------------------------------------------
-          const [item] = await tx
-            .select({
-              currentQuantity: inventoryItems.currentQuantity,
-              status: inventoryItems.status, // Necessário para a lógica de status
-            })
-            .from(inventoryItems)
-            .where(eq(inventoryItems.id, inventoryItemId))
-            .for("update"); // <--- CRUCIAL: Impede condição de corrida
-
-          if (!item) {
-            throw new Error("ITEM_NOT_FOUND");
-          }
-
-          // ---------------------------------------------------------
-          // PASSO 2: Definir Matemática (Soma ou Subtração?)
-          // ---------------------------------------------------------
-          // Se a ação for 'restock', é uma entrada (+). O resto é saída (-).
-          const isAddition = action === "restock";
-
-          // Define o valor real para o banco (ex: 10 ou -10)
-          const quantityChange = isAddition
-            ? Math.abs(quantity)
-            : -Math.abs(quantity);
-
-          // ---------------------------------------------------------
-          // PASSO 3: Validação de Estoque Negativo
-          // ---------------------------------------------------------
-          // Só validamos saldo se for uma SAÍDA.
-          // (Adicionar estoque nunca gera erro de saldo insuficiente)
-          if (!isAddition && item.currentQuantity < Math.abs(quantityChange)) {
-            throw new Error(`INSUFFICIENT_STOCK:${item.currentQuantity}`);
-          }
-
-          // ---------------------------------------------------------
-          // PASSO 4: Registrar Log de Auditoria
-          // ---------------------------------------------------------
-          await tx.insert(inventoryActivityLog).values({
-            inventoryItemId: inventoryItemId,
-            userId: authUser.id,
-            action: action,
-            quantityChange: quantityChange, // Grava +10 ou -10
-            timestamp: new Date(),
-          });
-
-          // ---------------------------------------------------------
-          // PASSO 5: Calcular Novo Estado
-          // ---------------------------------------------------------
-          const newQuantity = item.currentQuantity + quantityChange;
-
-          // Lógica inteligente de Status:
-          let newStatus = item.status; // Padrão: mantém o status atual (ex: 'expired' continua 'expired')
-
-          if (newQuantity === 0) {
-            // Se zerou, vira 'empty' independente do que era antes
-            newStatus = "empty";
-          } else if (item.status === "empty" && newQuantity > 0) {
-            // Se estava vazio e encheu, vira 'in_stock'
-            newStatus = "in_stock";
-          }
-          // Nota: Se o status era 'expired' e adicionamos itens, ele CONTINUA 'expired'.
-          // Isso é correto: misturar produto novo com vencido contamina o lote.
-
-          // ---------------------------------------------------------
-          // PASSO 6: Atualizar Item
-          // ---------------------------------------------------------
-          const [updatedItem] = await tx
-            .update(inventoryItems)
-            .set({
-              currentQuantity: newQuantity,
-              status: newStatus,
-            })
-            .where(eq(inventoryItems.id, inventoryItemId))
-            .returning();
-
-          return updatedItem;
-        });
-
-        return c.json({ data: updatedItem });
-      } catch (error) {
-        console.error("Erro na transação de inventário:", error);
-
-        // Tratamento de Erros de Negócio
-        if (error instanceof Error) {
-          if (error.message === "ITEM_NOT_FOUND") {
-            return c.json({ message: "Item não encontrado." }, 404);
-          }
-          if (error.message.startsWith("INSUFFICIENT_STOCK")) {
-            const current = error.message.split(":")[1];
-            return c.json(
-              {
-                message: `Estoque insuficiente para realizar a baixa. Atual: ${current}`,
-              },
-              400
-            );
-          }
-        }
-
-        return c.json({ message: "Erro interno ao processar estoque." }, 500);
-      }
-    }
-  );
+  });
 
 export default app;
