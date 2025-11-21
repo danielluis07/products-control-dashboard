@@ -98,12 +98,13 @@ export const columns: ColumnDef<Response>[] = [
       const diffTime = expiry.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      let variant: "default" | "destructive" | "secondary" = "secondary";
+      let variant: "default" | "destructive" | "secondary" | "alert" =
+        "secondary";
 
       if (diffDays < 0) {
         variant = "destructive"; // Vencido
       } else if (diffDays <= 7) {
-        variant = "default"; // Alerta (Amarelo)
+        variant = "alert"; // Alerta (Amarelo)
       }
 
       return <Badge variant={variant}>{formatted}</Badge>;
